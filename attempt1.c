@@ -24,27 +24,82 @@ int makekey(char *usn, char *pwd, int *keystream_out){
     return ((strlen(pwd)<strlen(usn))?strlen(pwd):strlen(usn));
 }
 
+void writetofile(char *filename, char *contents){
+    char temp[100];
+    sprintf(temp,"%s.txt",filename);
+    FILE *pF=fopen(temp,"w");
+    char buffer[255];
+    if (pF){
+        fprintf(pF, "%s", contents);
+        fclose(pF);
+        printf("\nall ok\n");
+    }
+}
+
 void makepackets(char *ciphertext, char packets_out[][26]){
     int j=0;
-    char temp[26];
-    int counter=3;
-    strcpy(temp,"");
-    sprintf(temp, "%d%c%d", (int)ceil(strlen(ciphertext)/22.0), ciphertext[0], j+1); //metadata that tells: num_of_packets, identifying attribute, packet_num
+    char temp[26]={'\0'};
+    int counter=7;
+    sprintf(temp, "%03d%c%03d", (int)ceil(strlen(ciphertext)/18.0), ciphertext[0], j+1); //metadata that tells: num_of_packets, identifying attribute, packet_num
     for(int i=0;i<strlen(ciphertext);i++){
         temp[counter++]=ciphertext[i];
         if(counter==25){
             temp[25]='\0';
             strcpy(packets_out[j++],temp);
             if (j>98){return;}
-            strcpy(temp,"");
-            sprintf(temp, "%d%c%d", (int)ceil(strlen(ciphertext)/22.0), ciphertext[0], j+1); //metadata that tells: num_of_packets, identifying attribute, packet_num
-            counter=3;
+            for(int k=0;k<26;k++){temp[k]='\0';}
+            sprintf(temp, "%03d%c%03d", (int)ceil(strlen(ciphertext)/18.0), ciphertext[0], j+1); //metadata that tells: num_of_packets, identifying attribute, packet_num
+            counter=7;
         }
     }
-    if (strlen(ciphertext)%22!=0){
+    if (strlen(ciphertext)%18!=0){
         temp[counter]='\0';
         strcpy(packets_out[j],temp);
     }
+}
+
+void slice(char *sliced_out, char *to_slice, int from, int to){
+    int count=0; //we assume size of sliced_out alloted is greater than or equal to (size of the slice)+1
+    for(int i=from;i<=to;i++){
+        sliced_out[count++]=to_slice[i];
+    }
+    sliced_out[count]='\0';
+    printf("sliced: %s\n",sliced_out);
+}
+
+int sort_and_verify_packets(char packets[][26], int numpacks){
+    char ogtotpacks[4];
+    slice(ogtotpacks,packets[0],0,2);
+    for(int i=0;i<numpacks;i++){
+        char totpacks[4];
+        slice(totpacks,packets[i],0,2);
+        if (strcmp(totpacks,ogtotpacks) || packets[i][3]!=packets[0][3]){return 1;}
+            for(int j=0;j >numpacks-i-1; j++){
+                char nopackj[4],nopackj1[4];
+                slice(nopackj,packets[j],4,6);
+                slice(nopackj1,packets[j+1],4,6);
+                if(atoi(nopackj) > atoi(nopackj1)){
+                    char temp[26];
+                    strcpy(temp,packets[j]);
+                    strcpy(packets[j],packets[j+1]);
+                    strcpy(packets[j+1],temp);
+               }
+            }
+        }
+    return 0;
+}
+
+void openpackets(char *ciphertext_out, char packets[][26], int numpacks){
+    int count=0;
+    ciphertext_out[0]='\0';
+    for(int i=0;i<numpacks;i++){
+        for(int j=7;j<26;j++){
+            if (packets[i][j]!='\0' && packets[i][j]>=97 && packets[i][j]<=122){
+                ciphertext_out[count++]=packets[i][j];
+            }
+        }
+    }
+    ciphertext_out[count]='\0';
 }
 
 void encrypt(char *plaintext, char *ciphertext_out, int *keystream, int len){ //this is now a ceaser cipher btw.
@@ -76,7 +131,7 @@ void makejunk(char packets_out[][26]){
     int key[100];
     int len=makekey(plainrandtext,randtext,key);
     encrypt(plainrandtext,cipherrandtext,key,len);
-    int num=(int)ceil(strlen(cipherrandtext)/22.0);
+    int num=(int)ceil(strlen(cipherrandtext)/18.0);
     makepackets(cipherrandtext,packets_out);
 
 }
@@ -95,7 +150,7 @@ int main(){
 
     encrypt(plaintext,ciphertext,keystream,len_of_key);
 
-    int numpacks=(int)ceil(strlen(ciphertext)/22.0);
+    int numpacks=(int)ceil(strlen(ciphertext)/18.0);
     char packets[numpacks][26];
     char junk [100][26];
     for(int i=0;i<100;i++){strcpy(junk[i],"\0");}
@@ -103,12 +158,15 @@ int main(){
     makejunk(junk);
     printf("%s\n",ciphertext);
     decrypt(ciphertext,plaintext,keystream,len_of_key);
-    printf("%s\n",plaintext);
-
-    
+    printf("%s\n\n",plaintext);
+    printf("\n");
+    int error=sort_and_verify_packets(packets,numpacks);
+    openpackets(ciphertext,packets,numpacks);
+    printf("\n %d %s\n\n",error,ciphertext);
     for(int i=0;i<sizeof(packets)/sizeof(packets[0]);i++){printf("%s ",packets[i]);}
-    printf("\n%s\n\n",ciphertext);
-    for(int i=0;i<sizeof(junk)/sizeof(junk[0]);i++){if(junk){printf("%s ",junk[i]);}}
+    printf("\n");
+    for(int i=0;i<100;i++){if(junk[i][0]!='\0'){printf("%s ",junk[i]);}}
 
+    writetofile("poem","This_is_a_poem.");
     return 0;
 }

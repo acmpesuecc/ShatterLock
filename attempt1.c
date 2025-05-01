@@ -24,6 +24,27 @@ int makekey(char *usn, char *pwd, int *keystream_out){
     return ((strlen(pwd)<strlen(usn))?strlen(pwd):strlen(usn));
 }
 
+void makejunkkeystream(int *keystream_out){
+    char randtext[]="philosophyofeducationisalabelappliedtothestudyofthepurposeprocessnatureandidealsofeducationitcanbeconsideredabranchofbothphilosophyandeducationeducationcanbedefinedastheteachingandlearningofspecificskillsandtheimpartingofknowledgejudgmentandwisdomandissomethingbroaderthanthesocietalinstitutionofeducationweoftenspeakofmanyeducationalistsconsideritaweakandwoollyfieldtoofarremovedfromthepracticalapplicationsoftherealworldtobeusefulbutphilosophersdatingbacktoplatoandtheancientgreekshavegiventheareamuchthoughtandemphasisandthereislittledoubtthattheirworkhashelpedshapethepracticeofeducationoverthemillenniaplatoistheearliestimportanteducationalthinkerandeducationisanessentialelementintherepublichismostimportantworkonphilosophyandpoliticaltheorywrittenaroundbcinitheadvocatessomeratherextrememethodsremovingchildrenfromtheirmotherscareandraisingthemaswardsofthestateanddifferentiatingchildrensuitabletothevariouscastesthehighestreceivingthemosteducationsothattheycouldactasguardiansofthecityandcareforthelessablehebelievedthateducationshouldbeholisticincludingfactsskillsphysicaldisciplinemusicandartplatobelievedthattalentandintelligenceisnotdistributedgeneticallyandthusisbefoundinchildrenborntoallclassesalthoughhisproposedsystemofselectivepubliceducationforaneducatedminorityofthepopulationdoesnotreallyfollowademocraticmodelaristotleconsideredhumannaturehabitandreasontobeequallyimportantforcestobecultivatedineducationtheultimateaimofwhichshouldbetoproducegoodandvirtuouscitizensheproposedthatteachersleadtheirstudentssystematicallyandthatrepetitionbeusedasakeytooltodevelopgoodhabitsunlikesocratesemphasisonquestioninghislistenerstobringouttheirownideasheemphasizedthebalancingofthetheoreticalandpracticalaspectsofsubjectstaughtamongwhichheexplicitlymentionsreadingwritingmathematicsmusicphysicaleducationliteraturehistoryandawiderangeofsciencesaswellasplaywhichhealsoconsideredimportantduringthemedievalperiodtheideaofperennialismwasfirstformulatedbystthomasaquinashisinworkdemagistroperennialismholdsthatoneshouldteachthosethingsdeemedtobeofeverlastingimportancetoallpeopleeverywherenamelyprinciplesandreasoningnotjustfactswhichareapttochangeovertimeandthatoneshouldteachfirstaboutpeoplenotmachinesortechniquesitwasoriginallyreligiousinnatureanditwasonlymuchlaterthatatheoryofsecularperennialismdevelopedduringtherenaissancethefrenchskepticmicheldemontaignewasoneofthefirsttocriticallylookateducationunusuallyforhistimemontaignewaswillingtoquestiontheconventionalwisdomoftheperiodcallingintoquestionthewholeedificeoftheeducationalsystemandtheimplicitassumptionthatuniversityeducatedphilosopherswerenecessarilywiserthanuneducatedfarmworkersforexample";
+    char randusn[100];
+    char randpwd[100];
+    srand(time(0));
+    randusn[0] = '\0'; 
+    randpwd[0] = '\0';
+    int rand_start = rand() % (strlen(randtext) - 100); // ensure at least 100 chars available
+    int rand_len = 49 + rand() % 50; // copy 90 to 99 characters
+    strncpy(randusn, randtext + rand_start, rand_len);
+    randusn[rand_len] = '\0';
+    rand_start = rand() % (strlen(randtext) - 100);
+    rand_len = 49 + rand() % 50;
+    strncpy(randpwd, randtext + rand_start, rand_len);
+    randpwd[rand_len]='\0';
+
+    for(int i=0;i<((strlen(randpwd)<strlen(randusn))?strlen(randpwd):strlen(randusn));i++){
+        keystream_out[i]=((int)randusn[i]*(int)randpwd[i])%26;
+    }
+}
+
 void writetofile(char *filename, char *contents){
     char temp[100];
     sprintf(temp,"%s.txt",filename);
@@ -32,7 +53,6 @@ void writetofile(char *filename, char *contents){
     if (pF){
         fprintf(pF, "%s", contents);
         fclose(pF);
-        printf("\nall ok\n");
     }
 }
 
@@ -64,7 +84,6 @@ void slice(char *sliced_out, char *to_slice, int from, int to){
         sliced_out[count++]=to_slice[i];
     }
     sliced_out[count]='\0';
-    printf("sliced: %s\n",sliced_out);
 }
 
 int sort_and_verify_packets(char packets[][26], int numpacks){
@@ -136,6 +155,15 @@ void makejunk(char packets_out[][26]){
 
 }
 
+void namepackets(char packetnames_out[][200],int numpackets,int *keystream){
+    //for(int i=0;i<numpackets;i++){
+        //srand
+        //we need to name the packets in a recreatable yet seemingly random way so that we can fetch those packets again but the guy cant.
+        //name should be dependent only on keystream (which comes from usn and password) and not on packet contents as we should be able to recreate to fetch the right packets.
+        printf("Yet to make names of packets and then put packets in the storage folder with junk and make ");
+    //}
+}
+
 int main(){
     char plaintext[100];
     char ciphertext[100];
@@ -147,26 +175,31 @@ int main(){
     inputstring("Password",password);
 
     int len_of_key=makekey(username,password,keystream);
-
     encrypt(plaintext,ciphertext,keystream,len_of_key);
 
     int numpacks=(int)ceil(strlen(ciphertext)/18.0);
     char packets[numpacks][26];
+    char packetnames[numpacks][200];
+    char junknames[100][200];
     char junk [100][26];
-    for(int i=0;i<100;i++){strcpy(junk[i],"\0");}
+    int junkkeystream[100];
+    for(int i=0;i<100;i++){for(int j=0;j<26;j++){junk[i][j]='\0';}}
+
     makepackets(ciphertext,packets);
     makejunk(junk);
-    printf("%s\n",ciphertext);
-    decrypt(ciphertext,plaintext,keystream,len_of_key);
-    printf("%s\n\n",plaintext);
-    printf("\n");
-    int error=sort_and_verify_packets(packets,numpacks);
-    openpackets(ciphertext,packets,numpacks);
-    printf("\n %d %s\n\n",error,ciphertext);
-    for(int i=0;i<sizeof(packets)/sizeof(packets[0]);i++){printf("%s ",packets[i]);}
-    printf("\n");
-    for(int i=0;i<100;i++){if(junk[i][0]!='\0'){printf("%s ",junk[i]);}}
+    makejunkkeystream(junkkeystream);
 
-    writetofile("poem","This_is_a_poem.");
+    namepackets(packetnames,numpacks,keystream);
+    namepackets(junknames,100,junkkeystream);
+
+    //int error=sort_and_verify_packets(packets,numpacks); //sorts packets recieved before unpacking
+    //openpackets(ciphertext,packets,numpacks); //unpackets into ciphertext
+    //printf("\n %d %s\n\n",error,ciphertext);
+    //for(int i=0;i<sizeof(packets)/sizeof(packets[0]);i++){printf("%s ",packets[i]);}
+    //printf("\n");
+    //for(int i=0;i<100;i++){if(junk[i][0]!='\0'){printf("%s ",junk[i]);}}
+
+
+
     return 0;
 }

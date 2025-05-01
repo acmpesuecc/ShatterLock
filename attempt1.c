@@ -160,7 +160,7 @@ void namepackets(char packetnames_out[][200],int numpackets,int *keystream){
         //srand
         //we need to name the packets in a recreatable yet seemingly random way so that we can fetch those packets again but the guy cant.
         //name should be dependent only on keystream (which comes from usn and password) and not on packet contents as we should be able to recreate to fetch the right packets.
-        printf("Yet to make names of packets and then put packets in the storage folder with junk and make ");
+        printf("Yet to make names of packets and then put packets in the storage folder with junk. make sure the packets and junk packets are inserted in random. so that no one can make out which is junk and which is not or the order based on time created.");
     //}
 }
 

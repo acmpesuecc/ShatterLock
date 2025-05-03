@@ -262,6 +262,18 @@ void writepacketsintofiles(char packetnames[][100],int numpacks,char packets[][2
 
 }
 
+void deletepackets(char packetnames[][100], int numpackets){
+    for(int i=0;i<numpackets;i++){
+        char temp[113];
+        sprintf(temp,"storage/%s.txt",packetnames[i]);
+        if (remove(temp) == 0) {
+            printf("File deleted successfully.\n");
+        } else {
+            printf("Error: Unable to delete the file.\n");
+        }
+    }
+}
+
 void signup(int *keystream, int len_of_key){
     char plaintext[100];
     char ciphertext[100];
@@ -302,11 +314,13 @@ void read(int *keystream, int len_of_key){
 }
 
 void edit(int *keystream, int len_of_key){
-
+//TODO: edit
 }
 
 void delete(int *keystream, int len_of_key){
-
+    char packetnames[100][100];
+    int numpackets=getpacketnames(packetnames,keystream,len_of_key);
+    deletepackets(packetnames,numpackets);
 }
 
 int main(){
@@ -323,20 +337,20 @@ int main(){
     fgets(useless,10,stdin); //clears
     
     char choice;
-    printf("Enter choice (S for signup, R for read, E for edit, D for delete):\n");
+    printf("Enter choice (s for signup, r for read, e for edit, d for delete):\n");
     scanf("%c",&choice);
     switch (choice)
     {
-    case 'S':
+    case 's':
         signup(keystream,len_of_key);
         break;
-    case 'R':
+    case 'r':
         read(keystream,len_of_key);
         break;
-    case 'E':
+    case 'e':
         edit(keystream,len_of_key);
         break;
-    case 'D':
+    case 'd':
         delete(keystream,len_of_key);
         break;
     default:

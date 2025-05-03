@@ -1,5 +1,7 @@
-//Needs:
+// FIX THIS ASAP
 // ERROR: SHASHI's FILES ARE OVERWRITING SURAJ's FILES (users, not the people lol)
+// ERROR: EVEN JUNK FILES OF A USER ARE OVERLAPPING WITH THE SAME USER.
+// SO IT ONLY WORKS WITH ONE USER AND NO JUNK EITHER.
 // TODO: encrypt the metadata and add a secodn layer of encryption to the whole thing.
 
 #include <stdio.h>
@@ -15,7 +17,8 @@ void inputstring(char *what, char *input_to_this_string){
 
 int makekey(char *usn, char *pwd, int *keystream_out){
     for(int i=0;i<((strlen(pwd)<strlen(usn))?strlen(pwd):strlen(usn));i++){
-        keystream_out[i]=((int)usn[i]*(int)pwd[i])%26;
+        srand((int)usn[i]*(int)pwd[i]);
+        keystream_out[i]=(rand())%26;
     }
     return ((strlen(pwd)<strlen(usn))?strlen(pwd):strlen(usn));
 }
@@ -103,7 +106,7 @@ int sort_and_verify_packets(char packets[][26], int numpacks){
     for(int i=0;i<numpacks;i++){
         char totpacks[4];
         slice(totpacks,packets[i],0,2);
-        if (strcmp(totpacks,ogtotpacks) || packets[i][3]!=packets[0][3]){return 1;}
+        if (strcmp(totpacks,ogtotpacks) || packets[i][3]!=packets[0][3]){printf("ERROR VERIFYING PACKETS.");return 1;}
             for(int j=0;j >numpacks-i-1; j++){
                 char nopackj[4],nopackj1[4];
                 slice(nopackj,packets[j],4,6);
@@ -227,7 +230,7 @@ void writepacketsintofiles(char packetnames[][100],int numpacks,char packets[][2
     for(int k=0;k<numjunk;k++){writtenjunk[k]=0;}
     srand(keystream[((int)junk[2][19])%len_of_keystream]); //gives a random seed
     int countwrittenpacks=0, countwrittenjunk=0;
-    while( countwrittenpacks!=numpacks || countwrittenjunk!=numjunk){
+    while( countwrittenpacks!=numpacks){ //|| countwrittenjunk!=numjunk commenting out junk for testing
         //we need to write all packets and junkpackets at random so that attacker cant know if the packet is junk or not, or the order they go in by seeing when it was created.
         //checking_if_all_packets_written
             // countwrittenjunk=0;
@@ -247,6 +250,7 @@ void writepacketsintofiles(char packetnames[][100],int numpacks,char packets[][2
             else{continue;}//packet is empty already, run loop again
         }
         else{
+            continue; //commenting out junk for testing.
             if(countwrittenjunk==numjunk){continue;}
             //junk
             int temp= rand()%numjunk;
@@ -365,20 +369,20 @@ int main(){
     inputstring("Username",username);
     inputstring("Password",password);
 
-    printf("Heres the issue: \n");
-    printf("First user's key is: \n");
-    strcpy(username,"suraj");
-    strcpy(password,"hello");
-    int len_of_key=makekey(username,password,keystream);
-    for(int i=0;i<len_of_key;i++){printf("%d",i);}
-    printf("\nNow the second user's key is:\n");
-    strcpy(username,"shashi");
-    strcpy(password,"isnthere");
-    len_of_key=makekey(username,password,keystream);
-    for(int i=0;i<len_of_key;i++){printf("%d",i);}
-    printf("\n the file names depend only on keystream. this causes one persons file to overwrite the other.");
+    // printf("Heres the issue: \n");
+    // printf("First user's key is: \n");
+    // strcpy(username,"suraj");
+    // strcpy(password,"hello");
+    // int len_of_key=makekey(username,password,keystream);
+    // for(int i=0;i<len_of_key;i++){printf("%d",keystream[i]);}
+    // printf("\nNow the second user's key is:\n");
+    // strcpy(username,"shashi");
+    // strcpy(password,"isnthere");
+    // len_of_key=makekey(username,password,keystream);
+    // for(int i=0;i<len_of_key;i++){printf("%d",keystream[i]);}
+    // printf("\n the file names depend only on keystream. this causes one persons file to overwrite the other.");
 
-    //int len_of_key=makekey(username,password,keystream);
+    int len_of_key=makekey(username,password,keystream);
     for(int i=0;i<100;i++){username[i]='\0';password[i]='\0';}
 
     char useless[10];

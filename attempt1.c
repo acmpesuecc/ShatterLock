@@ -50,12 +50,24 @@ void writetofile(char *filename, char *contents){
     char temp[100];
     sprintf(temp,"storage/%s.txt",filename);
     FILE *pF=fopen(temp,"w");
-    char buffer[255];
     if (!pF){
         printf("File open error");
         exit(1);  // Fail fast
     }
     fprintf(pF, "%s", contents);
+    fclose(pF);
+}
+void readcontents(char *filename, char *contents_out){
+    char temp[113];
+    sprintf(temp,"storage/%s.txt",filename);
+    FILE *pF=fopen(temp,"r");
+    char buffer[255];
+    if (!pF){
+        printf("File open error: %s",temp);
+        exit(1);  // Fail fast
+    }
+    fgets(buffer, 255, pF); // only need to get once since file should only contain 26 characters.
+    strcpy(contents_out,buffer);
     fclose(pF);
 }
 
@@ -111,6 +123,12 @@ int sort_and_verify_packets(char packets[][26], int numpacks){
     return 0;
 }
 
+void getpackets(int numpacks, char packetnames[100][100], char packets_out[numpacks][26]){
+    for(int i=0;i<numpacks;i++){
+        readcontents(packetnames[i],packets_out[i]);
+    }
+}
+
 void openpackets(char *ciphertext_out, char packets[][26], int numpacks){
     int count=0;
     ciphertext_out[0]='\0';
@@ -124,7 +142,7 @@ void openpackets(char *ciphertext_out, char packets[][26], int numpacks){
     ciphertext_out[count]='\0';
 }
 
-void encrypt(char *plaintext, char *ciphertext_out, int *keystream, int len){ //this is now a ceaser cipher btw.
+void encrypt(char *plaintext, char *ciphertext_out, int *keystream, int len){ //this is a ceaser cipher btw.
     for(int i=0;i<strlen(plaintext);i++){
         ciphertext_out[i]=(char)(((((int)plaintext[i])+keystream[i%len])+26-97)%26)+97;
     }
@@ -140,12 +158,14 @@ void decrypt(char *ciphertext, char *plaintext_out, int *keystream, int len){
 
 int makejunk(char packets_out[][26]){
     char randtext[]="philosophyofeducationisalabelappliedtothestudyofthepurposeprocessnatureandidealsofeducationitcanbeconsideredabranchofbothphilosophyandeducationeducationcanbedefinedastheteachingandlearningofspecificskillsandtheimpartingofknowledgejudgmentandwisdomandissomethingbroaderthanthesocietalinstitutionofeducationweoftenspeakofmanyeducationalistsconsideritaweakandwoollyfieldtoofarremovedfromthepracticalapplicationsoftherealworldtobeusefulbutphilosophersdatingbacktoplatoandtheancientgreekshavegiventheareamuchthoughtandemphasisandthereislittledoubtthattheirworkhashelpedshapethepracticeofeducationoverthemillenniaplatoistheearliestimportanteducationalthinkerandeducationisanessentialelementintherepublichismostimportantworkonphilosophyandpoliticaltheorywrittenaroundbcinitheadvocatessomeratherextrememethodsremovingchildrenfromtheirmotherscareandraisingthemaswardsofthestateanddifferentiatingchildrensuitabletothevariouscastesthehighestreceivingthemosteducationsothattheycouldactasguardiansofthecityandcareforthelessablehebelievedthateducationshouldbeholisticincludingfactsskillsphysicaldisciplinemusicandartplatobelievedthattalentandintelligenceisnotdistributedgeneticallyandthusisbefoundinchildrenborntoallclassesalthoughhisproposedsystemofselectivepubliceducationforaneducatedminorityofthepopulationdoesnotreallyfollowademocraticmodelaristotleconsideredhumannaturehabitandreasontobeequallyimportantforcestobecultivatedineducationtheultimateaimofwhichshouldbetoproducegoodandvirtuouscitizensheproposedthatteachersleadtheirstudentssystematicallyandthatrepetitionbeusedasakeytooltodevelopgoodhabitsunlikesocratesemphasisonquestioninghislistenerstobringouttheirownideasheemphasizedthebalancingofthetheoreticalandpracticalaspectsofsubjectstaughtamongwhichheexplicitlymentionsreadingwritingmathematicsmusicphysicaleducationliteraturehistoryandawiderangeofsciencesaswellasplaywhichhealsoconsideredimportantduringthemedievalperiodtheideaofperennialismwasfirstformulatedbystthomasaquinashisinworkdemagistroperennialismholdsthatoneshouldteachthosethingsdeemedtobeofeverlastingimportancetoallpeopleeverywherenamelyprinciplesandreasoningnotjustfactswhichareapttochangeovertimeandthatoneshouldteachfirstaboutpeoplenotmachinesortechniquesitwasoriginallyreligiousinnatureanditwasonlymuchlaterthatatheoryofsecularperennialismdevelopedduringtherenaissancethefrenchskepticmicheldemontaignewasoneofthefirsttocriticallylookateducationunusuallyforhistimemontaignewaswillingtoquestiontheconventionalwisdomoftheperiodcallingintoquestionthewholeedificeoftheeducationalsystemandtheimplicitassumptionthatuniversityeducatedphilosopherswerenecessarilywiserthanuneducatedfarmworkersforexample";
+    //were going with this rand text instead of just taking random characters one at a time so that people cant detect junk usinc Index of Coincidence.
+    //this is still easily breakable.
     char plainrandtext[100];
     srand(time(0));
 
     plainrandtext[0] = '\0'; //gpt made these lines:
-    int rand_start = rand() % (strlen(randtext) - 100); // ensure at least 100 chars available
-    int rand_len = 49 + rand() % 50; // copy 90 to 99 characters
+    int rand_start = rand() % (strlen(randtext) - 400); // ensure at least 100 chars available
+    int rand_len = 349 + rand() % 100; // copy 349 to 449 characters
     strncpy(plainrandtext, randtext + rand_start, rand_len);
     plainrandtext[rand_len] = '\0';
 
@@ -170,6 +190,37 @@ void namepackets(char packetnames_out[][100],int numpackets,int *keystream, int 
         }
         packetnames_out[i][99]='\0';
     }
+}
+
+int getpacketnames(char packetnames_out[][100],int *keystream, int len_of_keystream){
+    char letters[]="abcdefghijklmnopqrstuvwxyz0123456789";
+    int numpackets=0;
+    srand(keystream[0]);
+    char firstpacketname[100];
+    for(int j=0;j<100;j++){
+        firstpacketname[j]=letters[rand()%strlen(letters)];
+    }
+    firstpacketname[99]='\0';
+    //we get the first packet name this way as we know there must be atleast one packet.
+    // but we dont know how many packets there are, so we dont know how many names to generate.
+    // so we open the first packet and see the first 3 letters of metadata which tells us how many packets there are.
+
+    char firstpacket[255];
+    readcontents(firstpacketname, firstpacket);    
+    char total_packets[3];
+    slice(total_packets,firstpacket,0,2);
+    numpackets=atoi(total_packets);
+
+    for(int i=0;i<numpackets;i++){
+        //we need to name the packets in a recreatable yet seemingly random way so that we can fetch those packets again but the guy cant.
+        //name should be dependent only on keystream (which comes from usn and password) and not on packet contents as we should be able to recreate to fetch the right packets.
+        srand(keystream[i%len_of_keystream]);
+        for(int j=0;j<100;j++){
+            packetnames_out[i][j]=letters[rand()%strlen(letters)];
+        }
+        packetnames_out[i][99]='\0';
+    }
+    return numpackets;
 }
 
 void writepacketsintofiles(char packetnames[][100],int numpacks,char packets[][26],char junknames[][100],int numjunk,char junk[][26], int *keystream, int len_of_keystream){
@@ -224,7 +275,7 @@ void signup(int *keystream, int len_of_key){
     char packets[numpacks][26];
     char packetnames[numpacks][100];
     char junknames[100][100];
-    char junk [100][26];
+    char junk [500][26]; //349-449 chars long
     int junkkeystream[100];
     for(int i=0;i<100;i++){for(int j=0;j<26;j++){junk[i][j]='\0'; junknames[i][j]='\0';}}
 
@@ -236,7 +287,29 @@ void signup(int *keystream, int len_of_key){
     namepackets(junknames,(int)ceil(len_of_junk/18.0),junkkeystream,junkkeylen);
 
     writepacketsintofiles(packetnames,numpacks,packets,junknames,(int)ceil(len_of_junk/18.0),junk,keystream,len_of_key);
-    printf("Done.");
+    printf("Encrypted and Saved.");
+}
+
+void read(int *keystream, int len_of_key){
+    char plaintext[100];
+    char ciphertext[100];
+    char packetnames[100][100];
+    int numpackets=getpacketnames(packetnames,keystream,len_of_key);
+    char packets[numpackets][26];
+    //there is no need to order the packets we get since getpacketnames gets the names in the same order as it was encrypted.
+    //maybe this is a security issue. TODO: check and fix if needed.
+    getpackets(numpackets,packetnames,packets);
+    openpackets(ciphertext,packets,numpackets);
+    decrypt(ciphertext, plaintext, keystream, len_of_key);
+    printf("%s",plaintext);
+}
+
+void edit(int *keystream, int len_of_key){
+
+}
+
+void delete(int *keystream, int len_of_key){
+
 }
 
 int main(){
@@ -249,10 +322,12 @@ int main(){
     int len_of_key=makekey(username,password,keystream);
     for(int i=0;i<100;i++){username[i]='\0';password[i]='\0';}
 
+    char useless[10];
+    fgets(useless,10,stdin); //clears
     
     char choice;
     printf("Enter choice (S for signup, R for read, E for edit, D for delete):\n");
-    scanf("%c",choice);
+    scanf("%c",&choice);
     switch (choice)
     {
     case 'S':
@@ -271,17 +346,6 @@ int main(){
         printf("Invalid input.");
         break;
     }
-
-    
-    //int error=sort_and_verify_packets(packets,numpacks); //sorts packets recieved before unpacking
-    //openpackets(ciphertext,packets,numpacks); //unpackets into ciphertext
-    //printf("\n %d %s\n\n",error,ciphertext);
-    //for(int i=0;i<sizeof(packets)/sizeof(packets[0]);i++){printf("%s ",packets[i]);}
-    //printf("%d\n",len_of_junk);
-    //for(int i=0;i<100;i++){if(junk[i][0]!='\0'){printf("%s \n %s\n",junk[i],junknames[i]);}}
-
-
-
 
     return 0;
 }

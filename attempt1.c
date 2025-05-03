@@ -1,8 +1,11 @@
 //Needs:
-// TODO: encrypt the metadata and add a secodn layer of encryption to the whole thing. 
-//TODO: increase number of junk files.
-//TODO: increase encryption security
-//TODO: Shashi make it work within a folder of folders for example atleast.
+//Encryption and decryption functions. text goes in, text goes out. 
+// function to make and operate on text document or dat document TODO:
+//signup, read, edit and delete functions   TODO:
+//function to split up encrypted text with correct prefixes and make packets. TODO: encrypt the metadata and add a secodn layer of encryption to the whole thing.
+// till shashi gets here, a function to distribute packets among that folder
+//similarly to piece packets back
+
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -162,7 +165,7 @@ int makejunk(char packets_out[][26]){
 
     plainrandtext[0] = '\0'; //gpt made these lines:
     int rand_start = rand() % (strlen(randtext) - 100); // ensure at least 100 chars available
-    int rand_len = 49 + rand() % 50; // copy 90 to 99 characters
+    int rand_len = 49 + rand() % 50; 
     strncpy(plainrandtext, randtext + rand_start, rand_len);
     plainrandtext[rand_len] = '\0';
 
@@ -284,7 +287,7 @@ void signup(int *keystream, int len_of_key){
     char packets[numpacks][26];
     char packetnames[numpacks][100];
     char junknames[100][100];
-    char junk [500][26]; //349-449 chars long
+    char junk [500][26]; 
     int junkkeystream[100];
     for(int i=0;i<100;i++){for(int j=0;j<26;j++){junk[i][j]='\0'; junknames[i][j]='\0';}}
 
@@ -313,15 +316,51 @@ void read(int *keystream, int len_of_key){
     printf("%s",plaintext);
 }
 
-void edit(int *keystream, int len_of_key){
-//TODO: edit
-}
-
 void delete(int *keystream, int len_of_key){
     char packetnames[100][100];
     int numpackets=getpacketnames(packetnames,keystream,len_of_key);
     deletepackets(packetnames,numpackets);
 }
+
+void edit(int *keystream, int len_of_key){
+    //TODO: This seems like reptetive code. see if you can replace it by calling signup.
+    // the only reason i havent done it now is cause i dont want anything to be deleted until JUST before entering new contents.
+    //we print old contents, then ask for new contents, then delete old contents and store new contents. 
+    // (we also add new junk cause otherwise the attacker can see the date and time changed and know which files to open.)
+    read(keystream, len_of_key); //printing old contents
+    printf("\n");
+
+    // //taking in new contents
+    // char plaintext[100];
+    // char ciphertext[100];
+    // inputstring("new contents",plaintext);
+    // encrypt(plaintext,ciphertext,keystream,len_of_key);
+
+    // int numpacks=(int)ceil(strlen(ciphertext)/18.0);
+    // char packets[numpacks][26];
+    // char packetnames[numpacks][100];
+    // char junknames[100][100];
+    // char junk [6][26]; 
+    // int junkkeystream[100];
+    // for(int i=0;i<100;i++){for(int j=0;j<26;j++){junk[i][j]='\0'; junknames[i][j]='\0';}}
+
+    // makepackets(ciphertext,packets);
+    // int len_of_junk=makejunk(junk);
+    // int junkkeylen=makejunkkeystream(junkkeystream);
+
+    // namepackets(packetnames,numpacks,keystream,len_of_key);
+    // namepackets(junknames,(int)ceil(len_of_junk/18.0),junkkeystream,junkkeylen);
+
+    //deleting old contents
+    delete(keystream, len_of_key);
+    printf("Deleted old files\n");
+
+    signup(keystream, len_of_key);
+    // writepacketsintofiles(packetnames,numpacks,packets,junknames,(int)ceil(len_of_junk/18.0),junk,keystream,len_of_key);
+    printf("Encrypted and Saved.");
+
+}
+
 
 int main(){
     char username[100];
@@ -337,20 +376,20 @@ int main(){
     fgets(useless,10,stdin); //clears
     
     char choice;
-    printf("Enter choice (s for signup, r for read, e for edit, d for delete):\n");
+    printf("Enter choice (S for signup, R for read, E for edit, D for delete):\n");
     scanf("%c",&choice);
     switch (choice)
     {
-    case 's':
+    case 'S':
         signup(keystream,len_of_key);
         break;
-    case 'r':
+    case 'R':
         read(keystream,len_of_key);
         break;
-    case 'e':
+    case 'E':
         edit(keystream,len_of_key);
         break;
-    case 'd':
+    case 'D':
         delete(keystream,len_of_key);
         break;
     default:

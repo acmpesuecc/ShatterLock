@@ -231,7 +231,7 @@ void writepacketsintofiles(char packetnames[][100],int numpacks,char packets[][2
     for(int k=0;k<numjunk;k++){writtenjunk[k]=0;}
     srand(keystream[((int)junk[2][19])%len_of_keystream]); //gives a random seed
     int countwrittenpacks=0, countwrittenjunk=0;
-    while( countwrittenpacks!=numpacks || countwrittenjunk!=numjunk){
+    while( countwrittenpacks!=numpacks){ //|| countwrittenjunk!=numjunk temporarily removing junk for testing
         //we need to write all packets and junkpackets at random so that attacker cant know if the packet is junk or not, or the order they go in by seeing when it was created.
         //checking_if_all_packets_written
             // countwrittenjunk=0;
@@ -251,6 +251,7 @@ void writepacketsintofiles(char packetnames[][100],int numpacks,char packets[][2
             else{continue;}//packet is empty already, run loop again
         }
         else{
+            continue; //temporarily removing junk for testing.
             if(countwrittenjunk==numjunk){continue;}
             //junk
             int temp= rand()%numjunk;

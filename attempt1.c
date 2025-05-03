@@ -1,10 +1,6 @@
 //Needs:
-//Encryption and decryption functions. text goes in, text goes out. 
-// function to make and operate on text document or dat document TODO:
-//signup, read, edit and delete functions   TODO:
-//function to split up encrypted text with correct prefixes and make packets. TODO: encrypt the metadata and add a secodn layer of encryption to the whole thing.
-// till shashi gets here, a function to distribute packets among that folder
-//similarly to piece packets back
+// ERROR: SHASHI's FILES ARE OVERWRITING SURAJ's FILES (users, not the people lol)
+// TODO: encrypt the metadata and add a secodn layer of encryption to the whole thing.
 
 #include <stdio.h>
 #include <string.h>
@@ -231,7 +227,7 @@ void writepacketsintofiles(char packetnames[][100],int numpacks,char packets[][2
     for(int k=0;k<numjunk;k++){writtenjunk[k]=0;}
     srand(keystream[((int)junk[2][19])%len_of_keystream]); //gives a random seed
     int countwrittenpacks=0, countwrittenjunk=0;
-    while( countwrittenpacks!=numpacks){ //|| countwrittenjunk!=numjunk temporarily removing junk for testing
+    while( countwrittenpacks!=numpacks || countwrittenjunk!=numjunk){
         //we need to write all packets and junkpackets at random so that attacker cant know if the packet is junk or not, or the order they go in by seeing when it was created.
         //checking_if_all_packets_written
             // countwrittenjunk=0;
@@ -251,7 +247,6 @@ void writepacketsintofiles(char packetnames[][100],int numpacks,char packets[][2
             else{continue;}//packet is empty already, run loop again
         }
         else{
-            continue; //temporarily removing junk for testing.
             if(countwrittenjunk==numjunk){continue;}
             //junk
             int temp= rand()%numjunk;
@@ -317,13 +312,13 @@ void read(int *keystream, int len_of_key){
     printf("%s",plaintext);
 }
 
-void delete(int *keystream, int len_of_key){
+void delete(int *keystream, int len_of_key){ //YET TO TEST
     char packetnames[100][100];
     int numpackets=getpacketnames(packetnames,keystream,len_of_key);
     deletepackets(packetnames,numpackets);
 }
 
-void edit(int *keystream, int len_of_key){
+void edit(int *keystream, int len_of_key){ //YET TO TEST
     //TODO: This seems like reptetive code. see if you can replace it by calling signup.
     // the only reason i havent done it now is cause i dont want anything to be deleted until JUST before entering new contents.
     //we print old contents, then ask for new contents, then delete old contents and store new contents. 
@@ -370,7 +365,20 @@ int main(){
     inputstring("Username",username);
     inputstring("Password",password);
 
+    printf("Heres the issue: \n");
+    printf("First user's key is: \n");
+    strcpy(username,"suraj");
+    strcpy(password,"hello");
     int len_of_key=makekey(username,password,keystream);
+    for(int i=0;i<len_of_key;i++){printf("%d",i);}
+    printf("\nNow the second user's key is:\n");
+    strcpy(username,"shashi");
+    strcpy(password,"isnthere");
+    len_of_key=makekey(username,password,keystream);
+    for(int i=0;i<len_of_key;i++){printf("%d",i);}
+    printf("\n the file names depend only on keystream. this causes one persons file to overwrite the other.");
+
+    //int len_of_key=makekey(username,password,keystream);
     for(int i=0;i<100;i++){username[i]='\0';password[i]='\0';}
 
     char useless[10];

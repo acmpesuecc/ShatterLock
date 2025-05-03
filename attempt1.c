@@ -214,18 +214,10 @@ void writepacketsintofiles(char packetnames[][100],int numpacks,char packets[][2
 
 }
 
-int main(){
+void signup(int *keystream, int len_of_key){
     char plaintext[100];
     char ciphertext[100];
-    char username[100];
-    char password[100];
-    int keystream[100];
     inputstring("Plaintext",plaintext);
-    inputstring("Username",username);
-    inputstring("Password",password);
-
-    int len_of_key=makekey(username,password,keystream);
-    for(int i=0;i<100;i++){username[i]='\0';password[i]='\0';}
     encrypt(plaintext,ciphertext,keystream,len_of_key);
 
     int numpacks=(int)ceil(strlen(ciphertext)/18.0);
@@ -244,7 +236,43 @@ int main(){
     namepackets(junknames,(int)ceil(len_of_junk/18.0),junkkeystream,junkkeylen);
 
     writepacketsintofiles(packetnames,numpacks,packets,junknames,(int)ceil(len_of_junk/18.0),junk,keystream,len_of_key);
+    printf("Done.");
+}
 
+int main(){
+    char username[100];
+    char password[100];
+    int keystream[100];
+    inputstring("Username",username);
+    inputstring("Password",password);
+
+    int len_of_key=makekey(username,password,keystream);
+    for(int i=0;i<100;i++){username[i]='\0';password[i]='\0';}
+
+    
+    char choice;
+    printf("Enter choice (S for signup, R for read, E for edit, D for delete):\n");
+    scanf("%c",choice);
+    switch (choice)
+    {
+    case 'S':
+        signup(keystream,len_of_key);
+        break;
+    case 'R':
+        read(keystream,len_of_key);
+        break;
+    case 'E':
+        edit(keystream,len_of_key);
+        break;
+    case 'D':
+        delete(keystream,len_of_key);
+        break;
+    default:
+        printf("Invalid input.");
+        break;
+    }
+
+    
     //int error=sort_and_verify_packets(packets,numpacks); //sorts packets recieved before unpacking
     //openpackets(ciphertext,packets,numpacks); //unpackets into ciphertext
     //printf("\n %d %s\n\n",error,ciphertext);

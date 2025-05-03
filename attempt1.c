@@ -249,8 +249,8 @@ int main(){
     //openpackets(ciphertext,packets,numpacks); //unpackets into ciphertext
     //printf("\n %d %s\n\n",error,ciphertext);
     //for(int i=0;i<sizeof(packets)/sizeof(packets[0]);i++){printf("%s ",packets[i]);}
-    printf("%d\n",len_of_junk);
-    for(int i=0;i<100;i++){if(junk[i][0]!='\0'){printf("%s \n %s\n",junk[i],junknames[i]);}}
+    //printf("%d\n",len_of_junk);
+    //for(int i=0;i<100;i++){if(junk[i][0]!='\0'){printf("%s \n %s\n",junk[i],junknames[i]);}}
 
 
 

@@ -1,11 +1,8 @@
 //Needs:
-//Encryption and decryption functions. text goes in, text goes out. 
-// function to make and operate on text document or dat document TODO:
-//signup, read, edit and delete functions   TODO:
-//function to split up encrypted text with correct prefixes and make packets. TODO: encrypt the metadata and add a secodn layer of encryption to the whole thing.
-// till shashi gets here, a function to distribute packets among that folder
-//similarly to piece packets back
-
+// TODO: encrypt the metadata and add a secodn layer of encryption to the whole thing. 
+//TODO: increase number of junk files.
+//TODO: increase encryption security
+//TODO: Shashi make it work within a folder of folders for example atleast.
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -164,8 +161,8 @@ int makejunk(char packets_out[][26]){
     srand(time(0));
 
     plainrandtext[0] = '\0'; //gpt made these lines:
-    int rand_start = rand() % (strlen(randtext) - 400); // ensure at least 100 chars available
-    int rand_len = 349 + rand() % 100; // copy 349 to 449 characters
+    int rand_start = rand() % (strlen(randtext) - 100); // ensure at least 100 chars available
+    int rand_len = 49 + rand() % 50; // copy 90 to 99 characters
     strncpy(plainrandtext, randtext + rand_start, rand_len);
     plainrandtext[rand_len] = '\0';
 

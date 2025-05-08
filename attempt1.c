@@ -46,8 +46,10 @@ int makejunkkeystream(int *keystream_out){
 }
 
 void writetofile(char *filename, char *contents){
-    char temp[100];
+    char temp[113];
     sprintf(temp,"storage/%s.txt",filename);
+    FILE *pf=fopen(temp,"r");
+    if(pf){printf("FILE IS REPEATING ERROR!");}
     FILE *pF=fopen(temp,"w");
     if (!pF){
         printf("File open error");
@@ -60,12 +62,12 @@ void readcontents(char *filename, char *contents_out){
     char temp[113];
     sprintf(temp,"storage/%s.txt",filename);
     FILE *pF=fopen(temp,"r");
-    char buffer[255];
+    char buffer[26];
     if (!pF){
         printf("File open error: %s",temp);
         exit(1);  // Fail fast
     }
-    fgets(buffer, 255, pF); // only need to get once since file should only contain 26 characters.
+    fgets(buffer, 26, pF); // only need to get once since file should only contain 26 characters.
     strcpy(contents_out,buffer);
     fclose(pF);
 }
@@ -178,23 +180,82 @@ int makejunk(char packets_out[][26]){
 
 }
 
-void namepackets(char packetnames_out[][100],int numpackets,int *keystream, int len_of_keystream){
+int getuniquetouserseed(int *keystream, int len_of_keystream){ //gemini made this pls forgive me.
+    if (keystream == NULL || len_of_keystream <= 0) {
+        return 0;
+    }
+    long long int sum=0;
+    for (int i = 0; i < len_of_keystream; i++) {
+        // Add the keystream element. Modulo inside the loop helps prevent overflow
+        // if keystream values or length are very large, keeping the sum within long long limits.
+        // Using a large prime helps distribute the sum.
+        sum = (sum + keystream[i]) % 99991; //99991 is a large uniqe number.
+    }
+    sum = (sum + len_of_keystream) % 99991;
+    if (sum < 0) {
+        sum += 99991; // Add the prime to make it positive
+    }
+    return ((int)sum);
+}
+
+void namepackets(char packetnames_out[][100],int numpackets,int seed){
     char letters[]="abcdefghijklmnopqrstuvwxyz0123456789";
+
     for(int i=0;i<numpackets;i++){
         //we need to name the packets in a recreatable yet seemingly random way so that we can fetch those packets again but the guy cant.
         //name should be dependent only on keystream (which comes from usn and password) and not on packet contents as we should be able to recreate to fetch the right packets.
-        srand(keystream[i%len_of_keystream]);
+        srand(seed + i);
         for(int j=0;j<100;j++){
             packetnames_out[i][j]=letters[rand()%strlen(letters)];
         }
         packetnames_out[i][99]='\0';
+
+        char temp[113];
+        sprintf(temp,"storage/%s.txt",packetnames_out[i]);
+        FILE *pF=fopen(temp,"r");
+        if (pF){ //this means file already exists. so we throw error and stop
+            printf("FILE ALREADY EXISTS ERROR!: %s",temp);
+        }
+
+        for(int k=0;k<i;k++){if(!strcmp(packetnames_out[k],packetnames_out[i])){printf("FILENAME already EXISTS ERROR!");}}
+
     }
 }
 
-int getpacketnames(char packetnames_out[][100],int *keystream, int len_of_keystream){
+void namejunk(char packetnames_out[][100],int numpackets,int *keystream, int len_of_keystream){
+    //this is the same as the above function but if the file exists, we just generate another name, doesnt matter.
+    //cause it doesnt need to be reproducible.
     char letters[]="abcdefghijklmnopqrstuvwxyz0123456789";
+    unsigned long long int num_unique_to_user=1;
+    for(int i=0;i<len_of_keystream;i++){num_unique_to_user*=(keystream[i]+1);} //avoids 0 multiplication.
+    num_unique_to_user+=len_of_keystream;
+    for(int i=0;i<numpackets;i++){
+        //we need to name the packets in a recreatable yet seemingly random way so that we can fetch those packets again but the guy cant.
+        //name should be dependent only on keystream (which comes from usn and password) and not on packet contents as we should be able to recreate to fetch the right packets.
+        srand(num_unique_to_user/(keystream[i%len_of_keystream]+1)*(i+1)); //(avoids division/multiplication by 0)
+        int unique_name=0; //keeps writing the name till a unique one found. 
+        //yes i know this is inefficient, just roll with it for now.
+        while(unique_name==0){
+            for(int j=0;j<100;j++){
+                packetnames_out[i][j]=letters[rand()%strlen(letters)];
+            }
+            packetnames_out[i][99]='\0';
+
+            char temp[113];
+            sprintf(temp,"storage/%s.txt",packetnames_out[i]);
+            FILE *pF=fopen(temp,"r");
+            if (!pF){ //meaning unique name created.
+                unique_name=1;
+            }
+        }
+    }
+}
+
+int getpacketnames(char packetnames_out[][100],int seed){
+    char letters[]="abcdefghijklmnopqrstuvwxyz0123456789";
+
     int numpackets=0;
-    srand(keystream[0]);
+    srand(seed+0);
     char firstpacketname[100];
     for(int j=0;j<100;j++){
         firstpacketname[j]=letters[rand()%strlen(letters)];
@@ -204,16 +265,16 @@ int getpacketnames(char packetnames_out[][100],int *keystream, int len_of_keystr
     // but we dont know how many packets there are, so we dont know how many names to generate.
     // so we open the first packet and see the first 3 letters of metadata which tells us how many packets there are.
 
-    char firstpacket[255];
+    char firstpacket[26];
     readcontents(firstpacketname, firstpacket);    
-    char total_packets[3];
+    char total_packets[4];
     slice(total_packets,firstpacket,0,2);
-    numpackets=atoi(total_packets);
+    numpackets=atoi(total_packets); //test this once.
 
     for(int i=0;i<numpackets;i++){
         //we need to name the packets in a recreatable yet seemingly random way so that we can fetch those packets again but the guy cant.
         //name should be dependent only on keystream (which comes from usn and password) and not on packet contents as we should be able to recreate to fetch the right packets.
-        srand(keystream[i%len_of_keystream]);
+        srand(seed+i);
         for(int j=0;j<100;j++){
             packetnames_out[i][j]=letters[rand()%strlen(letters)];
         }
@@ -230,7 +291,7 @@ void writepacketsintofiles(char packetnames[][100],int numpacks,char packets[][2
     for(int k=0;k<numjunk;k++){writtenjunk[k]=0;}
     srand(keystream[((int)junk[2][19])%len_of_keystream]); //gives a random seed
     int countwrittenpacks=0, countwrittenjunk=0;
-    while( countwrittenpacks!=numpacks){ //|| countwrittenjunk!=numjunk commenting out junk for testing
+    while( countwrittenpacks!=numpacks || countwrittenjunk!=numjunk){ 
         //we need to write all packets and junkpackets at random so that attacker cant know if the packet is junk or not, or the order they go in by seeing when it was created.
         //checking_if_all_packets_written
             // countwrittenjunk=0;
@@ -250,7 +311,6 @@ void writepacketsintofiles(char packetnames[][100],int numpacks,char packets[][2
             else{continue;}//packet is empty already, run loop again
         }
         else{
-            continue; //commenting out junk for testing.
             if(countwrittenjunk==numjunk){continue;}
             //junk
             int temp= rand()%numjunk;
@@ -277,36 +337,37 @@ void deletepackets(char packetnames[][100], int numpackets){
     }
 }
 
-void signup(int *keystream, int len_of_key){
+void signup(int *keystream, int len_of_key, int seed){
     char plaintext[100];
-    char ciphertext[100];
-    inputstring("Plaintext",plaintext);
+    char ciphertext[200];
+    inputstring("Contents",plaintext);
     encrypt(plaintext,ciphertext,keystream,len_of_key);
 
     int numpacks=(int)ceil(strlen(ciphertext)/18.0);
     char packets[numpacks][26];
     char packetnames[numpacks][100];
-    char junknames[100][100];
-    char junk [500][26]; 
+    char junknames[30][100];
+    char junk [30][26]; 
     int junkkeystream[100];
-    for(int i=0;i<100;i++){for(int j=0;j<26;j++){junk[i][j]='\0'; junknames[i][j]='\0';}}
+    for(int i=0;i<30;i++){for(int j=0;j<26;j++){junk[i][j]='\0'; junknames[i][j]='\0';}}
 
     makepackets(ciphertext,packets);
     int len_of_junk=makejunk(junk);
     int junkkeylen=makejunkkeystream(junkkeystream);
 
-    namepackets(packetnames,numpacks,keystream,len_of_key);
-    namepackets(junknames,(int)ceil(len_of_junk/18.0),junkkeystream,junkkeylen);
-
+    namepackets(packetnames,numpacks,seed);//needs to be reproducible
+    namejunk(junknames,(int)ceil(len_of_junk/18.0),junkkeystream,junkkeylen); //doenst need to be reproducible, but shouldnt overwrite actual packets.
+    //TODO: I was here.
+    
     writepacketsintofiles(packetnames,numpacks,packets,junknames,(int)ceil(len_of_junk/18.0),junk,keystream,len_of_key);
     printf("Encrypted and Saved.");
 }
 
-void read(int *keystream, int len_of_key){
+void read(int *keystream, int len_of_key, int seed){
     char plaintext[100];
-    char ciphertext[100];
+    char ciphertext[200];
     char packetnames[100][100];
-    int numpackets=getpacketnames(packetnames,keystream,len_of_key);
+    int numpackets=getpacketnames(packetnames,seed);
     char packets[numpackets][26];
     //there is no need to order the packets we get since getpacketnames gets the names in the same order as it was encrypted.
     //maybe this is a security issue. TODO: check and fix if needed.
@@ -316,18 +377,18 @@ void read(int *keystream, int len_of_key){
     printf("%s",plaintext);
 }
 
-void delete(int *keystream, int len_of_key){ //YET TO TEST
+void delete(int seed){ //YET TO TEST
     char packetnames[100][100];
-    int numpackets=getpacketnames(packetnames,keystream,len_of_key);
+    int numpackets=getpacketnames(packetnames,seed);
     deletepackets(packetnames,numpackets);
 }
 
-void edit(int *keystream, int len_of_key){ //YET TO TEST
+void edit(int *keystream, int len_of_key, int seed){ //YET TO TEST
     //TODO: This seems like reptetive code. see if you can replace it by calling signup.
     // the only reason i havent done it now is cause i dont want anything to be deleted until JUST before entering new contents.
     //we print old contents, then ask for new contents, then delete old contents and store new contents. 
     // (we also add new junk cause otherwise the attacker can see the date and time changed and know which files to open.)
-    read(keystream, len_of_key); //printing old contents
+    read(keystream, len_of_key, seed); //printing old contents
     printf("\n");
 
     // //taking in new contents
@@ -352,10 +413,10 @@ void edit(int *keystream, int len_of_key){ //YET TO TEST
     // namepackets(junknames,(int)ceil(len_of_junk/18.0),junkkeystream,junkkeylen);
 
     //deleting old contents
-    delete(keystream, len_of_key);
+    delete(seed);
     printf("Deleted old files\n");
 
-    signup(keystream, len_of_key);
+    signup(keystream, len_of_key, seed);
     // writepacketsintofiles(packetnames,numpacks,packets,junknames,(int)ceil(len_of_junk/18.0),junk,keystream,len_of_key);
     printf("Encrypted and Saved.");
 
@@ -384,6 +445,7 @@ int main(){
 
     int len_of_key=makekey(username,password,keystream);
     for(int i=0;i<100;i++){username[i]='\0';password[i]='\0';}
+    int seed=getuniquetouserseed(keystream, len_of_key);
 
     char useless[10];
     fgets(useless,10,stdin); //clears
@@ -394,16 +456,16 @@ int main(){
     switch (choice)
     {
     case 'S':
-        signup(keystream,len_of_key);
+        signup(keystream,len_of_key, seed);
         break;
     case 'R':
-        read(keystream,len_of_key);
+        read(keystream,len_of_key, seed);
         break;
     case 'E':
-        edit(keystream,len_of_key);
+        edit(keystream,len_of_key, seed);
         break;
     case 'D':
-        delete(keystream,len_of_key);
+        delete(seed);
         break;
     default:
         printf("Invalid input.");

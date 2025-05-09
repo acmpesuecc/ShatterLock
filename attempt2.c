@@ -410,17 +410,69 @@ void signup(int *keystream, int len_of_key, int seed){
     for(int i=0;i<100;i++){first_key[i]=0;tempkey[i]=0;plaintext[i]=0;} //for safety.
 }
 
-void getfullplaintext(int *keystream, int len_of_key, int seed, char *plaintext_out){ TODO: I WAS HERE
+void getpackets(int numpacks, char packetnames[100][100], char packets_out[numpacks][26]){ //same as before
+    for(int i=0;i<numpacks;i++){
+        readcontents(packetnames[i],packets_out[i]);
+    }
+}
+
+void openpackets(char *ciphertext_out, char packets[][26], int numpacks){ //same as before
+    int count=0;
+    ciphertext_out[0]='\0';
+    for(int i=0;i<numpacks;i++){
+        for(int j=7;j<26;j++){
+            if (packets[i][j]!='\0' && packets[i][j]>=97 && packets[i][j]<=122){
+                ciphertext_out[count++]=packets[i][j];
+            }
+        }
+    }
+    ciphertext_out[count]='\0';
+}
+
+int getpacketnames(char packetnames_out[][100],int seed){ //TODO: ASAP MAKE THIS FUNCTION.
+    TODO: I WAS HERE
+    char letters[]="abcdefghijklmnopqrstuvwxyz0123456789";
+
+    int numpackets=0;
+    srand(seed+0);
+    char firstpacketname[100];
+    for(int j=0;j<100;j++){
+        firstpacketname[j]=letters[rand()%strlen(letters)];
+    }
+    firstpacketname[99]='\0';
+    //we get the first packet name this way as we know there must be atleast one packet.
+    // but we dont know how many packets there are, so we dont know how many names to generate.
+    // so we open the first packet and see the first 3 letters of metadata which tells us how many packets there are.
+
+    char firstpacket[26];
+    readcontents(firstpacketname, firstpacket);    
+    char total_packets[4];
+    slice(total_packets,firstpacket,0,2);
+    numpackets=atoi(total_packets); //test this once.
+
+    for(int i=0;i<numpackets;i++){
+        //we need to name the packets in a recreatable yet seemingly random way so that we can fetch those packets again but the guy cant.
+        //name should be dependent only on keystream (which comes from usn and password) and not on packet contents as we should be able to recreate to fetch the right packets.
+        srand(seed+i);
+        for(int j=0;j<100;j++){
+            packetnames_out[i][j]=letters[rand()%strlen(letters)];
+        }
+        packetnames_out[i][99]='\0';
+    }
+    return numpackets;
+}
+
+void getfullplaintext(int *keystream, int len_of_key, int seed, char *plaintext_out){
     char plaintext[100];
     char ciphertext[200];
     char packetnames[100][100];
-    int numpackets=getpacketnames(packetnames,seed); //TODO: ASAP MAKE THIS FUNCTION
+    int numpackets=getpacketnames(packetnames,seed);
     char packets[numpackets][26];
     
     //there is no need to order the packets we get since getpacketnames gets the names in the same order as it was encrypted.
     //maybe this is a security issue. TODO: check and fix if needed.
-    getpackets(numpackets,packetnames,packets); //TODO: ASAP MAKE THIS FUNCTION
-    openpackets(ciphertext,packets,numpackets); //TODO: ASAP MAKE THIS FUNCTION
+    getpackets(numpackets,packetnames,packets); 
+    openpackets(ciphertext,packets,numpackets); 
     decrypt(ciphertext, plaintext, keystream, len_of_key);
     strcpy(plaintext_out,plaintext);
 }

@@ -429,8 +429,7 @@ void openpackets(char *ciphertext_out, char packets[][26], int numpacks){ //same
     ciphertext_out[count]='\0';
 }
 
-int getpacketnames(char packetnames_out[][100],int seed){ //TODO: ASAP MAKE THIS FUNCTION.
-    TODO: I WAS HERE
+int getpacketnames(char packetnames_out[][100],int seed){
     char letters[]="abcdefghijklmnopqrstuvwxyz0123456789";
 
     int numpackets=0;
@@ -516,12 +515,67 @@ void read(int *keystream, int len_of_key, int seed){
     printf("%s",plaintext);
 }
 
+void deletepackets(char packetnames[][100], int numpackets){
+    for(int i=0;i<numpackets;i++){
+        char temp[113];
+        sprintf(temp,"storage/%s.txt",packetnames[i]);
+        if (remove(temp) == 0) {
+            printf("File deleted successfully.\n");
+        } else {
+            printf("Error: Unable to delete the file.\n");
+        }
+    }
+}
+
 void delete(int *keystream, int len_of_key, int seed){
-    //TODO: MAKE THIS FUNCTION}
+    char plaintext[100];
+    int first_key[100];
+    int key1len;
+    int second_key[100];
+    int key2len;
+    int tempkey[100];
+    int tempkeylen;
+    int seed1;
+    int seed2;
+
+    //getting decrypted key1 using seed and keystream
+    getfullplaintext(keystream, len_of_key, seed, plaintext);
+    key1len=strlen(plaintext);
+    for(int i=0;i<key1len;i++){first_key[i]=(int)(plaintext[i]-97);}
+    seed1=getuniquetouserseed(first_key, key1len);
+    for(int i=0;i<100;i++){plaintext[i]='\0';}
+
+    //getting decrypted key2 using seed1 and seed and keystream and key1
+    tempkeylen=key1len;
+    for(int i=0;i<tempkeylen;i++){tempkey[i]=(keystream[i]+first_key[i])%26;}
+    getfullplaintext(tempkey, tempkeylen, (seed*seed1), plaintext);
+    key2len=strlen(plaintext);
+    for(int i=0;i<key2len;i++){second_key[i]=(int)(plaintext[i]-97);}
+    seed2=getuniquetouserseed(second_key,key2len);
+    for(int i=0;i<100;i++){plaintext[i]='\0';tempkey[i]=0;}
+
+    //now we have all 3 seeds.
+    for(int i=0;i<100;i++){first_key[i]=0;second_key[i]=0;}
+
+    char packetnames[100][100];
+    int numpackets=getpacketnames(packetnames,(seed*seed1*seed2)); //deletes contents
+    deletepackets(packetnames, numpackets);
+
+    numpackets=getpacketnames(packetnames,(seed*seed1)); //deletes key2
+    deletepackets(packetnames, numpackets);
+
+    numpackets=getpacketnames(packetnames,(seed)); //deletes key1
+    deletepackets(packetnames, numpackets);
+
 }
 
 void edit(int *keystream, int len_of_key, int seed){
-    //TODO: MAKE THIS FUNCTION
+    read(keystream, len_of_key, seed);
+    printf("\n");
+    delete(keystream, len_of_key, seed);
+    printf("\n");
+    signup(keystream, len_of_key, seed);
+    printf("Saved.");
 }
 int main(){
     char username[100];
@@ -552,7 +606,7 @@ int main(){
         edit(keystream,len_of_key, seed);
         break;
     case 'D':
-        delete(seed);
+        delete(keystream, len_of_key, seed);
         break;
     default:
         printf("Invalid input.");

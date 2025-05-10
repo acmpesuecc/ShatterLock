@@ -515,18 +515,6 @@ void read(int *keystream, int len_of_key, int seed){
     printf("%s",plaintext);
 }
 
-void deletepackets(char packetnames[][100], int numpackets){
-    for(int i=0;i<numpackets;i++){
-        char temp[113];
-        sprintf(temp,"storage/%s.txt",packetnames[i]);
-        if (remove(temp) == 0) {
-            printf("File deleted successfully.\n");
-        } else {
-            printf("Error: Unable to delete the file.\n");
-        }
-    }
-}
-
 void delete(int *keystream, int len_of_key, int seed){
     char plaintext[100];
     int first_key[100];

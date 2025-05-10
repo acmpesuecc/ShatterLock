@@ -9,6 +9,9 @@
 //      how to encrypt using all 3 keys in a strong way?
 //      structure of getting key 2 and 3 from password and so on
 //      smarter generation of junk (achieving ratios)
+
+//TODO: make sure ppl cant get to know length of key 1, 2 or 3. make sure packets stored are always of the same length
+//      regardless of length of key.
 // TODO: encrypt the metadata and add a secodn layer of encryption to the whole thing. (layers and layered metadata encryption?)
 // TODO: once the encryption is better, encrypt it in layers using key 1, 2 and keystream instead of 1 tempkeystream like here.
 //in a future version, have it such that one user can have many contents

@@ -1,7 +1,3 @@
-// FIX THIS ASAP
-// ERROR: SHASHI's FILES ARE OVERWRITING SURAJ's FILES (users, not the people lol)
-// ERROR: EVEN JUNK FILES OF A USER ARE OVERLAPPING WITH THE SAME USER.
-// SO IT ONLY WORKS WITH ONE USER AND NO JUNK EITHER.
 // TODO: encrypt the metadata and add a secodn layer of encryption to the whole thing.
 
 #include <stdio.h>
@@ -143,7 +139,7 @@ void openpackets(char *ciphertext_out, char packets[][26], int numpacks){
     ciphertext_out[count]='\0';
 }
 
-void encrypt(char *plaintext, char *ciphertext_out, int *keystream, int len){ //this is a ceaser cipher btw.
+void encrypt(char *plaintext, char *ciphertext_out, int *keystream, int len){ //V basic and insecure.
     for(int i=0;i<strlen(plaintext);i++){
         ciphertext_out[i]=(char)(((((int)plaintext[i])+keystream[i%len])+26-97)%26)+97;
     }
@@ -189,7 +185,7 @@ int getuniquetouserseed(int *keystream, int len_of_keystream){ //gemini made thi
         // Add the keystream element. Modulo inside the loop helps prevent overflow
         // if keystream values or length are very large, keeping the sum within long long limits.
         // Using a large prime helps distribute the sum.
-        sum = (sum + keystream[i]) % 99991; //99991 is a large uniqe number.
+        sum = (sum + keystream[i]) % 99991; //99991 is a large prime number.
     }
     sum = (sum + len_of_keystream) % 99991;
     if (sum < 0) {
@@ -357,7 +353,6 @@ void signup(int *keystream, int len_of_key, int seed){
 
     namepackets(packetnames,numpacks,seed);//needs to be reproducible
     namejunk(junknames,(int)ceil(len_of_junk/18.0),junkkeystream,junkkeylen); //doenst need to be reproducible, but shouldnt overwrite actual packets.
-    //TODO: I was here.
     
     writepacketsintofiles(packetnames,numpacks,packets,junknames,(int)ceil(len_of_junk/18.0),junk,keystream,len_of_key);
     printf("Encrypted and Saved.");
@@ -429,19 +424,6 @@ int main(){
     int keystream[100];
     inputstring("Username",username);
     inputstring("Password",password);
-
-    // printf("Heres the issue: \n");
-    // printf("First user's key is: \n");
-    // strcpy(username,"suraj");
-    // strcpy(password,"hello");
-    // int len_of_key=makekey(username,password,keystream);
-    // for(int i=0;i<len_of_key;i++){printf("%d",keystream[i]);}
-    // printf("\nNow the second user's key is:\n");
-    // strcpy(username,"shashi");
-    // strcpy(password,"isnthere");
-    // len_of_key=makekey(username,password,keystream);
-    // for(int i=0;i<len_of_key;i++){printf("%d",keystream[i]);}
-    // printf("\n the file names depend only on keystream. this causes one persons file to overwrite the other.");
 
     int len_of_key=makekey(username,password,keystream);
     for(int i=0;i<100;i++){username[i]='\0';password[i]='\0';}

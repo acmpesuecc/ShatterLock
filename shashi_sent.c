@@ -1,41 +1,39 @@
 // TODO: encrypt the metadata and add a secodn layer of encryption to the whole thing.
 
-#include <stdio.h> // for printf and scanf
-#include <string.h> //for strlen, strcpy
-#include <math.h> //for ceil
-#include <stdlib.h> //for rand functions
-#include <time.h> //for time(0) when randomness needed.
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+#include <stdlib.h>
+#include <time.h>
+#include <dirent.h>
+#include <sys/stat.h> 
 
-#include <dirent.h> //-shashi //for scanning of subdirectories in linux(/posix) systems. (used in get_subdirectories)
-#include <sys/stat.h> //-shashi //lets us access file/directory metadata like permissions and type. (used to differentiate bw directories and files in get_sibdirectories)
-
-//this function fills subdirs array with subdirectories found in parent.
-int get_subdirectories(const char *parent, char subdirs_out[][256], int max_subdirs) { //-shashi
-    DIR *dir = opendir(parent); 
+int get_subdirectories(const char *parent, char subdirs[][256], int max_subdirs) {
+    DIR *dir = opendir(parent);
     if (!dir) {
         perror("opendir failed");
-        return 1;
+        return 0;
     }
-    //above lines open the parent directory, throws error 1 if fail.
 
-    struct dirent *entry; //used to iterte through each object in directory.
-    int count = 0; //how many subdirs found
-    char path[512]; //full path names
-    struct stat statbuf; //is the entry a diretory? 
+    struct dirent *entry;
+    int count = 0;
+    char path[512];
+    struct stat statbuf;
 
-    while ((entry = readdir(dir)) != NULL && count < max_subdirs) { //reading each object in parent till max_subdirs found.
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0){continue;} //if directory is . or .., skip it. (those are current and parent dirs)
+    while ((entry = readdir(dir)) != NULL && count < max_subdirs) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
 
-        snprintf(path, sizeof(path), "%s/%s", parent, entry->d_name); //constructs full path
-        if (stat(path, &statbuf) == 0 && S_ISDIR(statbuf.st_mode)) { //if metadata and if its a directory, put into subdirs[]
-            strncpy(subdirs_out[count], entry->d_name, 255);
-            subdirs_out[count][255] = '\0';  // null terminate just in case
-            count++; 
+        snprintf(path, sizeof(path), "%s/%s", parent, entry->d_name);
+        if (stat(path, &statbuf) == 0 && S_ISDIR(statbuf.st_mode)) {
+            strncpy(subdirs[count], entry->d_name, 255);
+            subdirs[count][255] = '\0';  // null terminate just in case
+            count++;
         }
     }
 
-    closedir(dir); //closes parent
-    return count; //returns number of (useful) subdirs put into subdirs[].
+    closedir(dir);
+    return count;
 }
 
 void inputstring(char *what, char *input_to_this_string){
@@ -73,17 +71,13 @@ int makejunkkeystream(int *keystream_out){
     return (strlen(randpwd)<strlen(randusn))?strlen(randpwd):strlen(randusn);
 }
 
-//filename is just the name, contents are 26 ciphertext chars. 
-//TODO: Avoid sending keystream here. make another function called while making filename to get full path instead.
-void writetofile(char *filename, char *contents, int *keystream, int *key_index, int len_of_keystream) { //- many changes by shashi
-    //-shashi from here
+void writetofile(char *filename, char *contents, int *keystream, int *key_index, int len_of_keystream) {
     char subdirs[100][256];
-    int num_subdirs = get_subdirectories("storage", subdirs, 100); //gets (max) 100 subdirs from storage.
+    int num_subdirs = get_subdirectories("storage", subdirs, 100);
 
-    //TODO: check and make sure reproducibility.
-    if (num_subdirs == 0) { //if no subdirectories found. failsafe. consider changing it to make dirs based on key instead of just using default.
+    if (num_subdirs == 0) {
         printf("No subdirectories found. Creating 'default'...\n");
-        mkdir("storage/default");
+        mkdir("storage/default", 0777);
         strcpy(subdirs[0], "default");
         num_subdirs = 1;
     }
@@ -102,29 +96,18 @@ void writetofile(char *filename, char *contents, int *keystream, int *key_index,
         printf("FILE IS REPEATING ERROR: %s\n", filepath);
         return;
     }
-    
+
     FILE *pF = fopen(filepath, "w");
     if (!pF) {
         printf("File open error for %s\n", filepath);
         exit(1);
     }
 
-    //-shashi till here
-
-    //my old code: pls look into:
-        // char temp[113]; 
-        // sprintf(temp,"storage/%s.txt",filename);
-        // FILE *pf=fopen(temp,"r");
-        // if(pf){printf("FILE IS REPEATING ERROR!");}
-        // FILE *pF=fopen(temp,"w");
-
-    
     fprintf(pF, "%s", contents);
     fclose(pF);
 }
 
-void readcontents(char *filename, char *contents_out, int *keystream, int *key_index, int len_of_keystream){ //-many changes by shashi
-    //-shashi from here
+void readcontents(char *filename, char *contents_out, int *keystream, int *key_index, int len_of_keystream){
     char subdirs[100][256];
     int num_subdirs = get_subdirectories("storage", subdirs, 100);
 
@@ -145,20 +128,10 @@ void readcontents(char *filename, char *contents_out, int *keystream, int *key_i
         exit(1);
     }
 
-    //-shashi till here
-
-    //my old code: pls look into:
-        // char temp[113];
-        // sprintf(temp,"storage/%s.txt",filename);
-        // FILE *pF=fopen(temp,"r");
-        // char buffer[26];
-        // fgets(buffer, 26, pF); // only need to get once since file should only contain 26 characters.
-        // strcpy(contents_out,buffer);
-        // fclose(pF);
-
     fgets(contents_out, 26, pF);  // 26-byte packets
     fclose(pF);
 }
+
 
 void makepackets(char *ciphertext, char packets_out[][26]){
     int j=0;
@@ -213,7 +186,6 @@ int sort_and_verify_packets(char packets[][26], int numpacks){
 }
 
 void getpackets(int numpacks, char packetnames[100][100], char packets_out[numpacks][26], int *keystream, int len_of_keystream){
-    //this function has been changed by shashi to pass the things needed to updated readcontents function.
     int key_index = 0;
     for (int i = 0; i < numpacks; i++) {
         readcontents(packetnames[i], packets_out[i], keystream, &key_index, len_of_keystream);
@@ -341,7 +313,7 @@ void namejunk(char packetnames_out[][100],int numpackets,int *keystream, int len
     }
 }
 
-int getpacketnames(char packetnames_out[][100], int seed, int *keystream, int len_of_keystream) { //some changes by shashi
+int getpacketnames(char packetnames_out[][100], int seed, int *keystream, int len_of_keystream) {
     char letters[] = "abcdefghijklmnopqrstuvwxyz0123456789";
 
     int numpackets = 0;
@@ -354,75 +326,57 @@ int getpacketnames(char packetnames_out[][100], int seed, int *keystream, int le
 
     // Use keystream to read the first packet
     char firstpacket[26];
-
-    //-shashi from here
     int key_index = 0;
     readcontents(firstpacketname, firstpacket, keystream, &key_index, len_of_keystream);
-    //-shashi till here changes to allow the right stuff to be passed to readcontents.
-
-    //we get the first packet name this way as we know there must be atleast one packet.
-    // but we dont know how many packets there are, so we dont know how many names to generate.
-    // so we open the first packet and see the first 3 letters of metadata which tells us how many packets there are.
 
     // Get the number of packets from metadata
     char total_packets[4];
     slice(total_packets, firstpacket, 0, 2);
-    numpackets = atoi(total_packets); //test this once. idk if it should be total_packets[4] or 3
+    numpackets = atoi(total_packets);
 
     for (int i = 0; i < numpackets; i++) {
-        //we need to name the packets in a recreatable yet seemingly random way so that we can fetch those packets again but the guy cant.
-        //name should be dependent only on keystream (which comes from usn and password) and not on packet contents as we should be able to recreate to fetch the right packets.
         srand(seed + i);  // ensure reproducibility
         for (int j = 0; j < 100; j++) {
             packetnames_out[i][j] = letters[rand() % strlen(letters)];
         }
         packetnames_out[i][99] = '\0';
     }
+
     return numpackets;
 }
 
-void writepacketsintofiles(char packetnames[][100],int numpacks,char packets[][26],char junknames[][100],int numjunk,char junk[][26], int *keystream, int len_of_keystream){
-    //yes, I know this is V inneficient, just roll with it for this version. consider using a boolean array
-    int writtenpackets[numpacks];
-    for(int k=0;k<numpacks;k++){writtenpackets[k]=0;}
-    int writtenjunk[numjunk];
-    for(int k=0;k<numjunk;k++){writtenjunk[k]=0;}
-    int key_index=0; // New by shashi to pass to writetofile
-    srand(keystream[((int)junk[2][19])%len_of_keystream]); //gives a random seed
-    int countwrittenpacks=0, countwrittenjunk=0;
-    while( countwrittenpacks!=numpacks || countwrittenjunk!=numjunk){ 
-        //we need to write all packets and junkpackets at random so that attacker cant know if the packet is junk or not, or the order they go in by seeing when it was created.
-        //checking_if_all_packets_written
-            // countwrittenjunk=0;
-            // countwrittenpacks=0;
-            // for(int k=0;k<numpacks;k++){if(writtenpackets[k]==1){countwrittenpacks++;}}
-            // for(int k=0;k<numjunk;k++){if(writtenjunk[k]==1){countwrittenjunk++;}}
-            // if(countwrittenjunk==numjunk && countwrittenpacks==numpacks){break;}
-        if(rand()%2==1){ //50/50 chnance of writing junk or packet
-            if(countwrittenpacks==numpacks){continue;}
-            //packet
-            int temp= rand()%numpacks;
-            if (writtenpackets[temp]==0){ //this means packet is not empty, so we write packet and make it empty
-                writetofile(packetnames[temp], packets[temp],keystream,&key_index,len_of_keystream); // <<<< updated by shashi to pass the nessecary stuff for updated writetofile.
-                writtenpackets[temp]=1;
-                countwrittenpacks++;
-                }
-            else{continue;}//packet is empty already, run loop again
-        }
-        else{
-            if(countwrittenjunk==numjunk){continue;}
-            //junk
-            int temp= rand()%numjunk;
-            if (writtenjunk[temp]==0){ //this means packet is not empty, so we write packet and make it empty
-                writetofile(junknames[temp],junk[temp],keystream,&key_index,len_of_keystream); // <<<< updated by shashi to pass the right stuff for updated writetofile.
-                writtenpackets[temp]=1;
-                writtenjunk[temp]=1;
-                countwrittenjunk++;
-                }
-            else{continue;}//packet is empty already, run loop again
-        }
-    }
 
+void writepacketsintofiles(char packetnames[][100], int numpacks, char packets[][26], char junknames[][100], int numjunk, char junk[][26], int *keystream, int len_of_keystream) {
+int writtenpackets[numpacks];
+int writtenjunk[numjunk];
+int key_index = 0;  // <<<< New
+
+for (int k = 0; k < numpacks; k++) writtenpackets[k] = 0;
+for (int k = 0; k < numjunk; k++) writtenjunk[k] = 0;
+
+srand(keystream[((int)junk[2][19]) % len_of_keystream]);  // Randomize write order
+
+int countwrittenpacks = 0, countwrittenjunk = 0;
+
+while (countwrittenpacks != numpacks || countwrittenjunk != numjunk) {
+if (rand() % 2 == 1) {  // 50/50 chance for real packet
+if (countwrittenpacks == numpacks) continue;
+int temp = rand() % numpacks;
+if (writtenpackets[temp] == 0) {
+writetofile(packetnames[temp], packets[temp], keystream, &key_index, len_of_keystream);  // <<<< updated
+writtenpackets[temp] = 1;
+countwrittenpacks++;
+}
+} else {
+if (countwrittenjunk == numjunk) continue;
+int temp = rand() % numjunk;
+if (writtenjunk[temp] == 0) {
+writetofile(junknames[temp], junk[temp], keystream, &key_index, len_of_keystream);  // <<<< updated
+writtenjunk[temp] = 1;
+countwrittenjunk++;
+}
+}
+}
 }
 
 void deletepackets(char packetnames[][100], int numpackets){
@@ -469,21 +423,21 @@ void read(int *keystream, int len_of_key, int seed) {
 
     int numpackets = getpacketnames(packetnames, seed, keystream, len_of_key);
     char packets[numpackets][26];
-    //there is no need to order the packets we get since getpacketnames gets the names in the same order as it was encrypted.
-    //maybe this is a security issue. TODO: check and fix if needed.
+
     getpackets(numpackets, packetnames, packets, keystream, len_of_key);
     openpackets(ciphertext, packets, numpackets);
     decrypt(ciphertext, plaintext, keystream, len_of_key);
-    printf("%s", plaintext);
+    printf("%s\n", plaintext);
 }
 
 
 
-void delete(int *keystream, int len_of_key, int seed) { //YET TO TEST
+void delete(int *keystream, int len_of_key, int seed) {
     char packetnames[100][100];
-    int numpackets = getpacketnames(packetnames, seed, keystream, len_of_key); //updated by shashi to pass what is needed to updated getpacketnames
+    int numpackets = getpacketnames(packetnames, seed, keystream, len_of_key);
     deletepackets(packetnames, numpackets);
 }
+
 
 void edit(int *keystream, int len_of_key, int seed){ //YET TO TEST
     //TODO: This seems like reptetive code. see if you can replace it by calling signup.
@@ -515,7 +469,7 @@ void edit(int *keystream, int len_of_key, int seed){ //YET TO TEST
     // namepackets(junknames,(int)ceil(len_of_junk/18.0),junkkeystream,junkkeylen);
 
     //deleting old contents
-    delete(keystream, len_of_key, seed); //edited by shashi to pass nessecary stuff
+    delete(keystream, len_of_key, seed);
     printf("Deleted old files\n");
 
     signup(keystream, len_of_key, seed);
@@ -554,7 +508,7 @@ int main(){
         edit(keystream,len_of_key, seed);
         break;
     case 'D':
-        delete(keystream, len_of_key, seed); //updated by shashi to pass whats needed
+        delete(keystream, len_of_key, seed);
         break;
     default:
         printf("Invalid input.");

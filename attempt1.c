@@ -73,29 +73,33 @@ int makejunkkeystream(int *keystream_out){
     return (strlen(randpwd)<strlen(randusn))?strlen(randpwd):strlen(randusn);
 }
 
-//filename is just the name, contents are 26 ciphertext chars. 
-//TODO: Avoid sending keystream here. make another function called while making filename to get full path instead.
+//filename is just the name, contents are 26 ciphertext chars. key_index is pointer to current 
+//TODO: IMP Avoid sending keystream here. make another function called while making filename to get full path instead.
+//TODO: IMP There should be a list of the pathnames along with list of packetnames so that we can just iterate through those and pass here and have it write.
 void writetofile(char *filename, char *contents, int *keystream, int *key_index, int len_of_keystream) { //- many changes by shashi
     //-shashi from here
     char subdirs[100][256];
-    int num_subdirs = get_subdirectories("storage", subdirs, 100); //gets (max) 100 subdirs from storage.
+    int num_subdirs = get_subdirectories("storage", subdirs, 100); //gets (up to) 100 subdirs from storage.
 
     //TODO: check and make sure reproducibility.
+    //PROBLEM THIS IS NOT REPRODUCIBLE. MAKE SURE IT DOESNT HAPPEN!!
     if (num_subdirs == 0) { //if no subdirectories found. failsafe. consider changing it to make dirs based on key instead of just using default.
-        printf("No subdirectories found. Creating 'default'...\n");
+        printf("ERROR: No subdirectories found. Creating 'default'...\n");
         mkdir("storage/default");
         strcpy(subdirs[0], "default");
         num_subdirs = 1;
     }
 
-    // Pseudorandomly select a subdirectory using keystream
-    int subdir_index = keystream[*key_index % len_of_keystream] % num_subdirs;
-    (*key_index)++;  // Move forward in keystream
+    // key_index is only used to choose a random starting point to go through the indexes. after that it is used as a counter to go through subdirsnlist.
+    //TODO: improve pseudo randomness
+    //TODO: consider just using seed pls (in version 1.5)
+    int subdir_index = keystream[*key_index % len_of_keystream] % num_subdirs;  //chooses a number from the keystream and takes subdir[that num]
+    (*key_index)++;  // since this is called by reference, this updates the key index of the caller. (the caller calls the writetofile function in a loop.)
 
-    char filepath[512];
-    snprintf(filepath, sizeof(filepath), "storage/%s/%s.txt", subdirs[subdir_index], filename);
+    char filepath[513]; //112+200+200+1 extra. (113 for filename, 200 for dir. idk why rest)
+    snprintf(filepath, sizeof(filepath), "storage/%s/%s.txt", subdirs[subdir_index], filename); //prints directory name into filepath
 
-    // Optional: check if file already exists
+    //just checking for error
     FILE *check = fopen(filepath, "r");
     if (check) {
         fclose(check);
@@ -103,7 +107,7 @@ void writetofile(char *filename, char *contents, int *keystream, int *key_index,
         return;
     }
     
-    FILE *pF = fopen(filepath, "w");
+    FILE *pF = fopen(filepath, "w"); //just checking for error
     if (!pF) {
         printf("File open error for %s\n", filepath);
         exit(1);
@@ -123,23 +127,30 @@ void writetofile(char *filename, char *contents, int *keystream, int *key_index,
     fclose(pF);
 }
 
+//TODO: IMP change this when you change writetofile in a similar way to fix similar issues pls.
+//i.e dont pass keystream and have another populate filepathnames func.
 void readcontents(char *filename, char *contents_out, int *keystream, int *key_index, int len_of_keystream){ //-many changes by shashi
     //-shashi from here
+    //same logic as in writefile
     char subdirs[100][256];
-    int num_subdirs = get_subdirectories("storage", subdirs, 100);
+    int num_subdirs = get_subdirectories("storage", subdirs, 100); //gets list of all available subdirs
 
-    if (num_subdirs == 0) {
-        printf("No subdirectories found!\n");
+    if (num_subdirs == 0) { //just error handling
+        printf("ERROR: No subdirectories found!\n");
         exit(1);
     }
 
+    // key_index is only used to choose a random starting point to go through the indexes. after that it is used as a counter to go through subdirsnlist.
+    //TODO: improve pseudo randomness
+    //TODO: consider just using seed pls (in version 1.5)
+    //(same comments in writetofile)
     int subdir_index = keystream[*key_index % len_of_keystream] % num_subdirs;
-    (*key_index)++;
+    (*key_index)++; // since this is called by reference, this updates the key index of the caller. (the caller calls the readcontents function in a loop.)
 
-    char temp[512];
+    char temp[513]; //113+200+200+1 extra (113 for filename, 200 for dir. idk why rest.)
     snprintf(temp, sizeof(temp), "storage/%s/%s.txt", subdirs[subdir_index], filename);
 
-    FILE *pF = fopen(temp, "r");
+    FILE *pF = fopen(temp, "r"); //just error handling
     if (!pF) {
         printf("File open error: %s\n", temp);
         exit(1);
@@ -357,7 +368,7 @@ int getpacketnames(char packetnames_out[][100], int seed, int *keystream, int le
 
     //-shashi from here
     int key_index = 0;
-    readcontents(firstpacketname, firstpacket, keystream, &key_index, len_of_keystream);
+    readcontents(firstpacketname, firstpacket, keystream, &key_index, len_of_keystream); 
     //-shashi till here changes to allow the right stuff to be passed to readcontents.
 
     //we get the first packet name this way as we know there must be atleast one packet.
@@ -388,7 +399,7 @@ void writepacketsintofiles(char packetnames[][100],int numpacks,char packets[][2
     int writtenjunk[numjunk];
     for(int k=0;k<numjunk;k++){writtenjunk[k]=0;}
     int key_index=0; // New by shashi to pass to writetofile
-    srand(keystream[((int)junk[2][19])%len_of_keystream]); //gives a random seed
+    srand(keystream[((int)junk[2][19])%len_of_keystream]); //gives a random seed.
     int countwrittenpacks=0, countwrittenjunk=0;
     while( countwrittenpacks!=numpacks || countwrittenjunk!=numjunk){ 
         //we need to write all packets and junkpackets at random so that attacker cant know if the packet is junk or not, or the order they go in by seeing when it was created.

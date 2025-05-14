@@ -112,7 +112,7 @@ void getpaths(char packetpaths_out[][513],char packetnames[][100], int numpacks,
     }
 }
 
-void writetofile(char *filepath, char *contents) { //- many changes by shashi
+void writetofile(char *filepath, char *contents) { 
 
     //just checking for error
     FILE *check = fopen(filepath, "r");
@@ -134,8 +134,6 @@ void writetofile(char *filepath, char *contents) { //- many changes by shashi
     fclose(pF);
 }
 
-//TODO: IMP change this when you change writetofile in a similar way to fix similar issues pls.
-//i.e dont pass keystream and have another populate filepathnames func.
 void readcontents(char *filepath, char *contents_out){ //-many changes by shashi
     
     FILE *pF = fopen(filepath, "r"); //just error handling

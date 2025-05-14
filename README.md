@@ -3,7 +3,7 @@ C-project for semester-2
 
 (will make a proper readme and all later, pls forgive)
 
-to run current stable version: attempt2.c
+to run current stable version: attempt2.c, attempt1.c is also stable and impliments subdirs distribution.
 
 windows: create "storage" folder in the folder where you downloaded the a.exe file in. then run that a.exe in the terminal.
 

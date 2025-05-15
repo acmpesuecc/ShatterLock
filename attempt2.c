@@ -26,6 +26,23 @@
 //      lenght in general should be obscured. figure out a way (maybe pad with useless letters and remove later.)
 //      Q and Z occur V rarely.
 
+
+// TODO:
+// currently, encrypt is a vigenerre cipher. (a stream cipher)
+// now i want to do:
+// vigenerre cipher as we are doing now.
+// add junk alternating like: ajajajajaja where a is actual character and j is junk character. (remove these while decrptying. is indipendet of the key.)
+// make sure it fits into a matrix adding extra "z" characters.
+// then we do a hill cipher with key being a square matrix.
+// then make the packets using that. (have the packets be a little bigger.)
+
+// for each user, when signup, make anoher file containing list of subdirs taken. i.e
+//    char subdirs[100][256];
+//    int num_subdirs = get_subdirectories("storage", subdirs, 100); //gets (up to) 100 subdirs from storage.
+// now we take this list of subdirs and (take just the plaintext in a usable way)
+// then we encrypt and keep this packets just like with contents, key, etc. (encrypt as content
+//then we get these back when )
+
 #include <stdio.h> // for printf and scanf
 #include <string.h> //for strlen, strcpy
 #include <math.h> //for ceil

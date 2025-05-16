@@ -32,6 +32,7 @@
 // now i want to do:
 // vigenerre cipher as we are doing now.
 // add junk alternating like: ajajajajaja where a is actual character and j is junk character. (remove these while decrptying. is indipendet of the key.)
+// then add the metadata.
 // make sure it fits into a matrix adding extra "z" characters.
 // then we do a hill cipher with key being a square matrix.
 // then make the packets using that. (have the packets be a little bigger.)
@@ -39,9 +40,9 @@
 // for each user, when signup, make anoher file containing list of subdirs taken. i.e
 //    char subdirs[100][256];
 //    int num_subdirs = get_subdirectories("storage", subdirs, 100); //gets (up to) 100 subdirs from storage.
-// now we take this list of subdirs and (take just the plaintext in a usable way)
-// then we encrypt and keep this packets just like with contents, key, etc. (encrypt as content
-//then we get these back when )
+// now we take this list of subdirs and (take just the characters in an encryptable way)
+// then we encrypt and keep the packets just like with contents, key, etc. (encrypt as you encrypt content)
+// then we get these back when reading and use it to get subdirs. that way someone creating a new folder in storage wont break the encryption for all the files. (cause currently, it relies on order)
 
 #include <stdio.h> // for printf and scanf
 #include <string.h> //for strlen, strcpy
@@ -200,7 +201,7 @@ int makekey(char *usn, char *pwd, int *keystream_out){ //here, key depends on th
     return (len_of_key);
 }
 
-void encrypt(char *plaintext, char *ciphertext_out, int *keystream, int len){ //going with the same encryption as before
+void vigenerre_encrypt(char *plaintext, char *ciphertext_out, int *keystream, int len){ //going with the same encryption as before
     for(int i=0;i<strlen(plaintext);i++){
         ciphertext_out[i]=(char)(((((int)plaintext[i])+keystream[i%len])+26-97)%26)+97;
     }
@@ -208,11 +209,44 @@ void encrypt(char *plaintext, char *ciphertext_out, int *keystream, int len){ //
 }
 
 
-void decrypt(char *ciphertext, char *plaintext_out, int *keystream, int len){ //same decryption algorithm as before.
+void vigenerre_decrypt(char *ciphertext, char *plaintext_out, int *keystream, int len){ //same decryption algorithm as before.
     for(int i=0;i<strlen(ciphertext);i++){
         plaintext_out[i]=(char)(((((int)ciphertext[i])-keystream[i%len])+26-97)%26)+97;
     }
     plaintext_out[strlen(ciphertext)]='\0'; //null_terminating
+}
+
+void hill_encrypt(){}
+void hill_decrypt(){}
+
+void insertjunkintostream(char *ciphertext_in, char *ciphertext_out){
+    char letters[]="abcdefghijklmnopqrstuvwxyz";
+    srand(time(0));
+    int len=strlen(ciphertext_in);
+    int count=0, j=0;
+    for(int i=0;i<len;i++){
+            ciphertext_out[count++]=letters[rand()%strlen(letters)]; //junk character
+            ciphertext_out[count++]=ciphertext_in[j++]; //real character
+    }
+    ciphertext_out[count]='\0';
+}
+void removejunkfromstream(char *ciphertext_in, char *ciphertext_out){  //TODO: IMP might not work. check.
+    int len=strlen(ciphertext_in);
+    int count=0;
+    if(len%2!=0){printf("ERROR: len in remove junk is not even!");}
+    for(int i=0;i<len;i++){ //len is even
+            i++; //junk character.
+            ciphertext_out[count++]=ciphertext_in[i]; //real character
+    }
+    ciphertext_out[count]='\0';
+}
+
+void makehillkey(int seed, int *hillkey_out){ //TODO: IMP MAJOR ERROR: NOT NESSESARILY INVERTIBLE!
+    srand(seed);
+    int len=26;
+    for(int i=0;i<len*len;i++){
+        hillkey_out[i]=rand()%26;
+    }
 }
 
 int makefirstanswerkey(int *keystream, int len_of_keystream, char *first_answer, int *keystream_out, int seed){
@@ -294,7 +328,7 @@ int makejunk(char packets_out[][26]){ //same as before
     char cipherrandtext[100];
     int key[100];
     int len=makekey(plainrandtext,randtext,key);
-    encrypt(plainrandtext,cipherrandtext,key,len);
+    vigenerre_encrypt(plainrandtext,cipherrandtext,key,len);
     int num=(int)ceil(strlen(cipherrandtext)/18.0);
     makepackets(cipherrandtext,packets_out);
     return(rand_len);
@@ -441,9 +475,9 @@ void writepacketsintofiles(char packetpaths[][513],int numpacks,char packets[][2
 void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_given, int seed_passed){
     char ciphertext[200];
 
-    encrypt(plaintext,ciphertext,key_given,len_of_key_given);
+    vigenerre_encrypt(plaintext,ciphertext,key_given,len_of_key_given);
 
-    // now distributing contents based on all three seeds.
+    // now distributing contents based on seed.
     int numpacks=(int)ceil(strlen(ciphertext)/18.0);
     char packets[numpacks][26];
     char packetnames[numpacks][100];
@@ -596,7 +630,7 @@ void getfullplaintext(int *keystream, int len_of_key, int seed, char *plaintext_
     //maybe this is a security issue. TODO: check and fix if needed.
     getpackets(numpackets,packetpaths,packets); 
     openpackets(ciphertext,packets,numpackets); 
-    decrypt(ciphertext, plaintext, keystream, len_of_key);
+    vigenerre_decrypt(ciphertext, plaintext, keystream, len_of_key);
     strcpy(plaintext_out,plaintext);
 }
 

@@ -241,13 +241,95 @@ void removejunkfromstream(char *ciphertext_in, char *ciphertext_out){  //TODO: I
     ciphertext_out[count]='\0';
 }
 
-void makehillkey(int seed, int *hillkey_out){ //TODO: IMP MAJOR ERROR: NOT NESSESARILY INVERTIBLE!
-    srand(seed);
-    int len=26;
-    for(int i=0;i<len*len;i++){
-        hillkey_out[i]=rand()%26;
+void getCofactor(int mat[26][26], int temp[26][26], int p, int q, int n) //I copied this code from GFG pls forgive.
+{
+    int i = 0, j = 0;
+
+    // Looping for each element of the matrix
+    for (int row = 0; row < n; row++)
+    {
+        for (int col = 0; col < n; col++) 
+        {
+            // Copying into temporary matrix 
+            // only those element which are 
+            // not in given row and column
+            if (row != p && col != q) 
+            {
+                temp[i][j++] = mat[row][col];
+
+                // Row is filled, so increase row 
+                // index and reset col index
+                if (j == n - 1) 
+                {
+                    j = 0;
+                    i++;
+                }
+            }
+        }
     }
 }
+
+int determinantOfMatrix(int mat[26][26], int n) //copied this code from GFG sorry
+{
+    // Initialize result
+    int D = 0; 
+
+    //  Base case : if matrix contains 
+    // single element
+    if (n == 1)
+        return mat[0][0];
+
+    // To store cofactors
+    int temp[26][26]; 
+
+    // To store sign multiplier
+    int sign = 1; 
+
+    // Iterate for each element of 
+    // first row
+    for (int f = 0; f < n; f++) 
+    {
+        // Getting Cofactor of mat[0][f]
+        getCofactor(mat, temp, 0, f, n);
+        D += sign * mat[0][f]
+             * determinantOfMatrix(temp, n - 1);
+
+        // Terms are to be added with alternate sign
+        sign = -sign;
+    }
+
+    return D;
+}
+
+int get_gcd(int a, int b) //copied this code from gfg, pls forgive.
+{
+    // Find Minimum of a and b
+    int result = ((a < b) ? a : b);
+    while (result > 0) {
+        if (a % result == 0 && b % result == 0) {
+            break;
+        }
+        result--;
+    }
+
+    // Return gcd of a and b
+    return result;
+}
+
+void makehillkey(int seed, int hillkey_out[26][26]){ //TODO: CRITICAL: USE GAUSSIAN ELIMINATION OR SMTN FOR FINDING DETERMINANT MODULO 26
+    srand(seed)
+    int len=26;
+    int det=0, gcd=0;
+    do{
+        for(int i=0;i<len;i++){
+            for(int j=0;j<len;j++){
+                hillkey_out[i][j]=rand()%26;
+            }
+        }
+        det=determinantOfMatrix(hillkey_out,26);
+        gcd=get_gcd(det,26);
+    }while(gcd!=1);
+} 
 
 int makefirstanswerkey(int *keystream, int len_of_keystream, char *first_answer, int *keystream_out, int seed){
     int len_out=(strlen(first_answer)<len_of_keystream)?strlen(first_answer):len_of_keystream;

@@ -66,13 +66,6 @@ void slice(char *sliced_out, char *to_slice, int from, int to){
     sliced_out[count]='\0';
 }
 
-//TODO: Impliment.
-void getusefulchars(char *with_junk_in ,char *useful_out)// takes every other character only.
-//please note that this has no cryptographic value. it is only to increase the number of packets.
-//this is ovious from the fact that it is not relying on the key.
-//TODO: Take a call on wether this is actually useful or if the number of packets dont matter.
-{}
-
 void writetofile(char *filepath, char *contents) { 
 
     //just checking for error
@@ -216,8 +209,71 @@ void vigenerre_decrypt(char *ciphertext, char *plaintext_out, int *keystream, in
     plaintext_out[strlen(ciphertext)]='\0'; //null_terminating
 }
 
-void hill_encrypt(){}
-void hill_decrypt(){}
+// void multiply_matrices(int R1, int m1[R1][26], int key[26][26], char m_out[R1][26]){ //works when R1<26
+//     char letters[]="abcdefghijklmnopqrstuvwxyz";
+//     int temp[R1][26];
+//     for (int i = 0; i < R1; i++) {
+//         for (int j = 0; j < 26; j++) {
+//             m_out[i][j] = 0;
+//             temp[i][j]=0;
+//             for (int k = 0; k < 26; k++) {
+//                 temp[i][j] += (key[i][k] * m1[k][j])%26;
+//             }
+//             m_out[i][j]=letters[temp[i][j]%26];
+//         }
+//     }
+// }
+
+//TODO: THIS WILL ONLY WORK FOR NUMPACKS<26 !!
+void hill_encrypt(int numpacks, char packets_in[numpacks][26],int hillkey[26][26], char packets_out[numpacks][26]){ //packets_in X hillkey
+    //we split up packets_out into blocks of m[R1][26] where R1<26;
+    //then perform hill encryption to the block and add it to packets_out.
+    // int numpacks_left=numpacks;
+    // int count=0;
+    // while(numpacks_left>0){ //iterating through the packets 26 at a time
+    //     if(numpacks_left>26){ //encrypt a block of 26 packets and add it to packets_out
+    //         int packets[26][26];
+    //         for(int i=0;i<26;i++){
+    //             for(int j=0;j<26;j++){
+    //                 packets[i][j]=(((int)packets_in[count][j])+26-97)%26; //taking the number of that character.
+    //             }
+    //             count++;
+    //         }
+    //         char temp[26][26];
+    //         multiply_matrices(26,packets,hillkey,temp);
+    //         int j=0;
+    //         for(int i=numpacks-numpacks_left;i<26;i++){
+    //             strcpy(packets_out[i],temp[j++]);
+    //         }
+    //     }
+        //else{ //encrypt the numpacks_left into packets_out
+            char letters[]="abcdefghijklmnopqrstuvwxyz";
+            int packets[numpacks][26];
+            for(int i=0;i<numpacks;i++){
+                for(int j=0;j<26;j++){
+                    packets[i][j]=(((int)packets_in[i][j])+26-97)%26; //taking the number of that character.
+                }
+            }
+
+            int result[numpacks][26];
+            for (int i = 0; i < numpacks; i++) {
+                for (int j = 0; j < 26; j++) {
+                    result[i][j] = 0;
+                    packets_out[i][j]='\0';
+
+                    for (int k = 0; k < 26; k++) {
+                        result[i][j] += (packets[i][k] * hillkey[k][j])%26;
+                    }
+                    packets_out[i][j]=letters[result[i][j]%26];
+                }
+            }
+
+        //}
+    //}
+}
+
+
+void hill_decrypt(){} //TODO: DO THIS ASAP IMP
 
 void insertjunkintostream(char *ciphertext_in, char *ciphertext_out){
     char letters[]="abcdefghijklmnopqrstuvwxyz";
@@ -231,6 +287,10 @@ void insertjunkintostream(char *ciphertext_in, char *ciphertext_out){
     ciphertext_out[count]='\0';
 }
 void removejunkfromstream(char *ciphertext_in, char *ciphertext_out){  //TODO: IMP might not work. check.
+    // takes every other character only.
+//please note that this has no cryptographic value. it is only to increase the number of packets.
+//this is ovious from the fact that it is not relying on the key.
+//TODO: Take a call on wether this is actually useful or if the number of packets dont matter.
     int len=strlen(ciphertext_in);
     int count=0;
     if(len%2!=0){printf("ERROR: len in remove junk is not even!");}
@@ -241,26 +301,14 @@ void removejunkfromstream(char *ciphertext_in, char *ciphertext_out){  //TODO: I
     ciphertext_out[count]='\0';
 }
 
-void getCofactor(int mat[26][26], int temp[26][26], int p, int q, int n) //I copied this code from GFG pls forgive.
-{
+void getCofactor(int mat[26][26], int temp[26][26], int p, int q, int n){ //I copied this code from GFG pls forgive.
     int i = 0, j = 0;
-
     // Looping for each element of the matrix
-    for (int row = 0; row < n; row++)
-    {
-        for (int col = 0; col < n; col++) 
-        {
-            // Copying into temporary matrix 
-            // only those element which are 
-            // not in given row and column
-            if (row != p && col != q) 
-            {
-                temp[i][j++] = mat[row][col];
-
-                // Row is filled, so increase row 
-                // index and reset col index
-                if (j == n - 1) 
-                {
+    for (int row = 0; row < n; row++){
+        for (int col = 0; col < n; col++) { // Copying into temporary matrix only those element which are not in given row and column
+            if (row != p && col != q) {
+                temp[i][j++] = mat[row][col]; //Row is filled, so increase row index and reset col index
+                if (j == n - 1) {
                     j = 0;
                     i++;
                 }
@@ -269,55 +317,41 @@ void getCofactor(int mat[26][26], int temp[26][26], int p, int q, int n) //I cop
     }
 }
 
-int determinantOfMatrix(int mat[26][26], int n) //copied this code from GFG sorry
-{
-    // Initialize result
-    int D = 0; 
-
-    //  Base case : if matrix contains 
-    // single element
-    if (n == 1)
+int determinantOfMatrix(int mat[26][26], int n){ //copied this code from GFG sorry
+    long long int D = 0; // Initialize result
+    if (n == 1)  //  Base case : if matrix contains single element
         return mat[0][0];
-
-    // To store cofactors
-    int temp[26][26]; 
-
-    // To store sign multiplier
-    int sign = 1; 
-
-    // Iterate for each element of 
-    // first row
-    for (int f = 0; f < n; f++) 
-    {
-        // Getting Cofactor of mat[0][f]
-        getCofactor(mat, temp, 0, f, n);
-        D += sign * mat[0][f]
-             * determinantOfMatrix(temp, n - 1);
-
-        // Terms are to be added with alternate sign
-        sign = -sign;
+    int temp[26][26]; // To store cofactors
+    int sign = 1; // To store sign multiplier
+    // Iterate for each element of first row
+    for (int f = 0; f < n; f++){ //gemini helped with this code. please forgive. i didnt know how to do it modulo 26.
+        getCofactor(mat, temp, 0, f, n); // Getting Cofactor of mat[0][f]
+        long long int term= (long long)sign * mat[0][f];
+        term = (term % 26 + 26) % 26;
+        long long sub_det=determinantOfMatrix(temp, n - 1);
+        sub_det = (sub_det % 26 + 26) % 26;
+        long long product = term * sub_det; 
+        product = (product % 26 + 26) % 26;
+        D = (D + product) % 26;
+        D = (D + 26) % 26;
+        sign = -sign; // Terms are to be added with alternate sign
     }
-
     return D;
 }
 
-int get_gcd(int a, int b) //copied this code from gfg, pls forgive.
-{
-    // Find Minimum of a and b
-    int result = ((a < b) ? a : b);
+int get_gcd(int a, int b){ //copied this code from gfg, pls forgive.
+    int result = ((a < b) ? a : b); // Find Minimum of a and b
     while (result > 0) {
         if (a % result == 0 && b % result == 0) {
             break;
         }
         result--;
-    }
-
-    // Return gcd of a and b
-    return result;
+    }    
+    return result; // Return gcd of a and b
 }
 
-void makehillkey(int seed, int hillkey_out[26][26]){ //TODO: CRITICAL: USE GAUSSIAN ELIMINATION OR SMTN FOR FINDING DETERMINANT MODULO 26
-    srand(seed)
+void makehillkey(int seed, int hillkey_out[26][26]){ //TODO: IMP IMPROVE EFFICIENCY BY GAUSSIAN ELIMINATION
+    srand(seed);
     int len=26;
     int det=0, gcd=0;
     do{
@@ -327,6 +361,7 @@ void makehillkey(int seed, int hillkey_out[26][26]){ //TODO: CRITICAL: USE GAUSS
             }
         }
         det=determinantOfMatrix(hillkey_out,26);
+        det=det%26;
         gcd=get_gcd(det,26);
     }while(gcd!=1);
 } 
@@ -564,10 +599,10 @@ void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_giv
     char packets[numpacks][26];
     char packetnames[numpacks][100];
     char packetpaths[numpacks][513]; //maybe make this 313
-    char junkpaths[30][513];
-    char junk [30][26]; 
+    char junkpaths[26][513];
+    char junk [26][26]; 
     int junkkeystream[100];
-    for(int i=0;i<30;i++){for(int j=0;j<26;j++){junk[i][j]='\0';}}
+    for(int i=0;i<26;i++){for(int j=0;j<26;j++){junk[i][j]='\0';}}
 
     makepackets(ciphertext,packets);
     int len_of_junk=makejunk(junk);

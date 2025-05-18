@@ -45,9 +45,9 @@
 // then we get these back when reading and use it to get subdirs. that way someone creating a new folder in storage wont break the encryption for all the files. (cause currently, it relies on order)
 
 #include <stdio.h> // for printf and scanf
-#include <string.h> //for strlen, strcpy
+#include <string.h> //for strlen, strcpy, memcpy
 #include <math.h> //for ceil
-#include <stdlib.h> //for rand functions
+#include <stdlib.h> //for rand functions, malloc, free and exit.
 #include <time.h> //for time(0) when randomness needed.
 
 #include <dirent.h> //-shashi //for scanning of subdirectories in linux(/posix) systems. (used in get_subdirectories)
@@ -301,71 +301,184 @@ void removejunkfromstream(char *ciphertext_in, char *ciphertext_out){  //TODO: I
     ciphertext_out[count]='\0';
 }
 
-void getCofactor(int mat[26][26], int temp[26][26], int p, int q, int n){ //I copied this code from GFG pls forgive.
-    int i = 0, j = 0;
-    // Looping for each element of the matrix
-    for (int row = 0; row < n; row++){
-        for (int col = 0; col < n; col++) { // Copying into temporary matrix only those element which are not in given row and column
-            if (row != p && col != q) {
-                temp[i][j++] = mat[row][col]; //Row is filled, so increase row index and reset col index
-                if (j == n - 1) {
-                    j = 0;
-                    i++;
-                }
-            }
-        }
+int get_gcd(int a, int b) { //gemini made this. pls forgive
+    a = (a > 0) ? a : -a; // Ensure numbers are non-negative for GCD calculation
+    b = (b > 0) ? b : -b;
+    while (b != 0) {
+        int temp = b;
+        b = a % b;
+        a = temp;
     }
+    return a;
 }
 
-int determinantOfMatrix(int mat[26][26], int n){ //copied this code from GFG sorry
-    long long int D = 0; // Initialize result
-    if (n == 1)  //  Base case : if matrix contains single element
-        return mat[0][0];
-    int temp[26][26]; // To store cofactors
-    int sign = 1; // To store sign multiplier
-    // Iterate for each element of first row
-    for (int f = 0; f < n; f++){ //gemini helped with this code. please forgive. i didnt know how to do it modulo 26.
-        getCofactor(mat, temp, 0, f, n); // Getting Cofactor of mat[0][f]
-        long long int term= (long long)sign * mat[0][f];
-        term = (term % 26 + 26) % 26;
-        long long sub_det=determinantOfMatrix(temp, n - 1);
-        sub_det = (sub_det % 26 + 26) % 26;
-        long long product = term * sub_det; 
-        product = (product % 26 + 26) % 26;
-        D = (D + product) % 26;
-        D = (D + 26) % 26;
-        sign = -sign; // Terms are to be added with alternate sign
-    }
-    return D;
-}
-
-int get_gcd(int a, int b){ //copied this code from gfg, pls forgive.
-    int result = ((a < b) ? a : b); // Find Minimum of a and b
+int my_get_gcd(int a, int b)
+{
+    // Find Minimum of a and b
+    int result = ((a < b) ? a : b);
     while (result > 0) {
         if (a % result == 0 && b % result == 0) {
             break;
         }
         result--;
-    }    
+    }
+    
     return result; // Return gcd of a and b
 }
 
-void makehillkey(int seed, int hillkey_out[26][26]){ //TODO: IMP IMPROVE EFFICIENCY BY GAUSSIAN ELIMINATION
+//gemini made this, pls forgive.
+int modInverse(int a, int m) { //Helper function to calculate the modular multiplicative inverse of 'a' modulo 'm' and returns if exists.
+    //Uses the Extended Euclidean Algorithm. Returns -1 if the inverse does not exist (i.e., if gcd(a, m) != 1).
+    int m0 = m;
+    int y = 0, x = 1;
+
+    a = (a % m + m) % m; // Ensure 'a' is within the range [0, m-1]
+
+    // Handle cases where inverse doesn't exist or is trivial
+    if (m == 1) return 0; // No inverse mod 1
+    if (a == 0) return -1; // Inverse of 0 doesn't exist
+
+    while (a > 1) {  // Extended Euclidean Algorithm Finds x, y such that a*x + m*y = gcd(a, m)
+        int q = a / m; // q is quotient
+        int t = m;
+
+        m = a % m; //m is remainder now, process same as Euclidean algorithm
+        a = t;
+        t = y;
+
+        y = x - q * y; //Update y and x
+        x = t;
+    }
+    if (x < 0) {
+        x = x + m0; // Ensure x is positive
+    }
+
+    // Check if the inverse found is valid (only needed if not guaranteed gcd=1)
+    // int gcd_check = get_gcd(a_original, m0); // Not needed here, logic above handles non-coprime
+    // if (gcd_check != 1) return -1; // Should not happen if loop terminates correctly
+
+    return x; // x is the modular inverse
+}
+
+//gemini made this pls forgive. truly am sorry, just too hard and complex to impliment in code for 26.
+int determinantOfMatrixUsingGaussian(int matrix[26][26]) { // Function to calculate the determinant of a 26x26 matrix modulo 26 using gaussian elimination.
+    //Returns determinant or 0 if matrix is singular%26 (not invertible)
+    int n=26;
+
+    int temp_matrix[26][26]; //Create a local copy to avoid changing the original matrix passed in. We need to perform Gaussian elimination, which modifies the matrix.
+    for (int i = 0; i < n; i++) { // Copy the input matrix to the temporary matrix
+        for (int j = 0; j < n; j++) {
+            temp_matrix[i][j] = (matrix[i][j] % 26 + 26) % 26; // Ensure initial values are 0-25 //just in case.
+        }
+    }
+
+    int current_determinant = 1; 
+    int num_row_swaps = 0;       // Count row swaps to adjust the sign later
+
+    // Perform Forward Elimination to make the matrix upper triangular
+    // Iterate through columns (pivot columns)
+    for (int j = 0; j < n; j++) { // j is the current column index
+
+        // --- Step 1: Find a pivot for the current column j ---
+        int pivot_row = j; // Start looking for a pivot in the current row j
+        // Find a row 'i' from 'j' downwards where the element temp_matrix[i][j] is non-zero and ideally coprime to 26 for modular inverse existence.
+        while (pivot_row < n && temp_matrix[pivot_row][j] == 0) {
+             pivot_row++; // Move to the next row if current element is 0
+        }
+        
+        if (pivot_row == n) { // If no non-zero pivot is found in this column from row j downwards
+            //printf("Debug (det func): Returning 0 (Singular: column %d is all zeros)\n", j);
+            return 0;  // The matrix is singular modulo 26. Determinant is 0. This column is all zeros from row j downwards.
+        }
+
+        // --- Step 2: If the pivot is not in the current row j, swap rows ---
+        if (pivot_row != j) {
+            for (int k = 0; k < n; k++) { // Swap the current row j with the pivot_row
+                int temp = temp_matrix[j][k];
+                temp_matrix[j][k] = temp_matrix[pivot_row][k];
+                temp_matrix[pivot_row][k] = temp;
+            }
+            num_row_swaps++; //swap counter++
+            // Swapping rows multiplies the determinant by -1 (or 25 mod 26)
+        }
+
+        int pivot_element = temp_matrix[j][j]; // The pivot element is now temp_matrix[j][j]
+
+        // --- Step 3: Check if the pivot element is coprime to 26 ---
+        // For modular inverse to exist (needed for division in elimination)
+        int pivot_gcd=get_gcd(pivot_element, 26);
+        if ( pivot_gcd!= 1) {
+             // The pivot is not coprime to 26 (divisible by 2 or 13).
+             // The matrix is singular modulo 26. Determinant is 0.
+             // print this for debugging to see why a matrix is rejected:
+              //printf("Debug (det func): Returning 0 (Singular: pivot %d not coprime to 26 at (%d,%d), GCD is %d)\n", pivot_element, j, j, pivot_gcd);
+             return 0;
+        }
+
+        // --- Step 4: Multiply the determinant by the pivot element ---
+        current_determinant = (current_determinant * pivot_element) % 26;
+
+        // --- Step 5: Eliminate elements below the pivot ---
+        // Make all elements below the pivot temp_matrix[j][j] equal to zero.
+        // Iterate through rows below the current pivot row 'j'
+        for (int i = j + 1; i < n; i++) {
+            int element_to_eliminate = temp_matrix[i][j]; // The element to make zero
+
+            // If the element is already zero, no operation is needed for this row
+            if (element_to_eliminate == 0) {
+                continue;
+            }
+
+            // Calculate the multiplier 'm' = (element to eliminate) * (pivot's modular inverse) mod 26
+            int pivot_inverse = modInverse(pivot_element, 26); // Get the modular inverse of the pivot
+            int multiplier = (element_to_eliminate * pivot_inverse) % 26;
+
+            // Perform the row operation: Row_i = (Row_i - multiplier * Row_j) mod 26
+            // Apply this operation to elements in columns from j to the end of the row
+            for (int k = j; k < n; k++) {
+                int term_to_subtract = (multiplier * temp_matrix[j][k]) % 26;
+                temp_matrix[i][k] = (temp_matrix[i][k] - term_to_subtract + 26) % 26; // Add 26 to handle potential negative results from subtraction
+            }
+        }
+    }
+
+    // --- Step 6: Adjust determinant sign based on row swaps ---
+    // Each row swap multiplies the determinant by -1. Modulo 26, -1 is 25.
+    if (num_row_swaps % 2 != 0) { // If an odd number of swaps occurred
+        current_determinant = (26 - current_determinant) % 26; // This is equivalent to (25 * current_determinant) % 26
+    }
+
+    // Ensure the final determinant is in the range [0, 25]
+    current_determinant = (current_determinant % 26 + 26) % 26;
+
+
+    // The final determinant is the product of the diagonal elements after elimination,
+    // adjusted for swaps. The loops already calculated this product step-by-step.
+
+    return current_determinant; // Return the calculated determinant modulo 26
+}
+
+
+void makehillkey(int seed, int hillkey_out[26][26]){ //consider returning determinant.
     srand(seed);
     int len=26;
     int det=0, gcd=0;
+    int count=0;
     do{
         for(int i=0;i<len;i++){
             for(int j=0;j<len;j++){
                 hillkey_out[i][j]=rand()%26;
             }
         }
-        det=determinantOfMatrix(hillkey_out,26); //TODO: CRITICAL IMP UNCOMMENT THIS AND FIURE OUT GAUSSIAN TINGY
-        printf("Determinant found");
+        det=determinantOfMatrixUsingGaussian(hillkey_out);
+        count++;
         det=det%26;
-        gcd=get_gcd(det,26);
-        //gcd=1;
-    }while(gcd!=1);
+        gcd=my_get_gcd(det,26);
+
+        if((count%1000)==0){printf("%d",count);}
+
+    }while(det==0); // Loop until an invertible matrix (det != 0 mod 26) is found
+    printf("Determinant found");
 } 
 
 int makefirstanswerkey(int *keystream, int len_of_keystream, char *first_answer, int *keystream_out, int seed){

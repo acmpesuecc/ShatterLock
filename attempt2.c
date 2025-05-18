@@ -360,9 +360,11 @@ void makehillkey(int seed, int hillkey_out[26][26]){ //TODO: IMP IMPROVE EFFICIE
                 hillkey_out[i][j]=rand()%26;
             }
         }
-        det=determinantOfMatrix(hillkey_out,26);
+        det=determinantOfMatrix(hillkey_out,26); //TODO: CRITICAL IMP UNCOMMENT THIS AND FIURE OUT GAUSSIAN TINGY
+        printf("Determinant found");
         det=det%26;
         gcd=get_gcd(det,26);
+        //gcd=1;
     }while(gcd!=1);
 } 
 
@@ -454,7 +456,7 @@ int makejunk(char packets_out[][26], int hillkey[][26]){
     makepackets(cipherjunktext,packets);
     hill_encrypt(num,packets,hillkey,packets_out);
 
-    return(rand_len);
+    return(num);
 
 }
 
@@ -627,16 +629,16 @@ void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_giv
     hill_encrypt(numpacks,packets,hillkey,newpackets);
     //now newpackets have the final encrypted packets (even metadata is encrypted.)
 
-    int len_of_junk=makejunk(junk,hillkey);
+    int numjunk=makejunk(junk,hillkey);
 
     int junkkeylen=makejunkkeystream(junkkeystream);
 
     namepackets(packetnames,numpacks,seed_passed);//needs to be reproducible, based on all seed
-    namejunk(junkpaths,(int)ceil(len_of_junk/18.0),junkkeystream,junkkeylen); //doenst need to be reproducible, but shouldnt overwrite actual packets.
+    namejunk(junkpaths,numjunk,junkkeystream,junkkeylen); //doenst need to be reproducible, but shouldnt overwrite actual packets.
 
     getpaths(packetpaths,packetnames,numpacks,seed_passed);
 
-    writepacketsintofiles(packetpaths,numpacks,newpackets,junkpaths,(int)ceil(len_of_junk/18.0),junk,key_given,len_of_key_given);
+    writepacketsintofiles(packetpaths,numpacks,newpackets,junkpaths,numjunk,junk,key_given,len_of_key_given);
     printf("Encrypted and Saved.");
 }
 

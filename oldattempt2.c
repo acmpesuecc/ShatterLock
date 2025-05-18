@@ -32,7 +32,6 @@
 // now i want to do:
 // vigenerre cipher as we are doing now.
 // add junk alternating like: ajajajajaja where a is actual character and j is junk character. (remove these while decrptying. is indipendet of the key.)
-// then add the metadata.
 // make sure it fits into a matrix adding extra "z" characters.
 // then we do a hill cipher with key being a square matrix.
 // then make the packets using that. (have the packets be a little bigger.)
@@ -40,9 +39,9 @@
 // for each user, when signup, make anoher file containing list of subdirs taken. i.e
 //    char subdirs[100][256];
 //    int num_subdirs = get_subdirectories("storage", subdirs, 100); //gets (up to) 100 subdirs from storage.
-// now we take this list of subdirs and (take just the characters in an encryptable way)
-// then we encrypt and keep the packets just like with contents, key, etc. (encrypt as you encrypt content)
-// then we get these back when reading and use it to get subdirs. that way someone creating a new folder in storage wont break the encryption for all the files. (cause currently, it relies on order)
+// now we take this list of subdirs and (take just the plaintext in a usable way)
+// then we encrypt and keep this packets just like with contents, key, etc. (encrypt as content
+//then we get these back when )
 
 #include <stdio.h> // for printf and scanf
 #include <string.h> //for strlen, strcpy
@@ -65,6 +64,13 @@ void slice(char *sliced_out, char *to_slice, int from, int to){
     }
     sliced_out[count]='\0';
 }
+
+//TODO: Impliment.
+void getusefulchars(char *with_junk_in ,char *useful_out)// takes every other character only.
+//please note that this has no cryptographic value. it is only to increase the number of packets.
+//this is ovious from the fact that it is not relying on the key.
+//TODO: Take a call on wether this is actually useful or if the number of packets dont matter.
+{}
 
 void writetofile(char *filepath, char *contents) { 
 
@@ -194,7 +200,7 @@ int makekey(char *usn, char *pwd, int *keystream_out){ //here, key depends on th
     return (len_of_key);
 }
 
-void vigenerre_encrypt(char *plaintext, char *ciphertext_out, int *keystream, int len){ //going with the same encryption as before
+void encrypt(char *plaintext, char *ciphertext_out, int *keystream, int len){ //going with the same encryption as before
     for(int i=0;i<strlen(plaintext);i++){
         ciphertext_out[i]=(char)(((((int)plaintext[i])+keystream[i%len])+26-97)%26)+97;
     }
@@ -202,169 +208,12 @@ void vigenerre_encrypt(char *plaintext, char *ciphertext_out, int *keystream, in
 }
 
 
-void vigenerre_decrypt(char *ciphertext, char *plaintext_out, int *keystream, int len){ //same decryption algorithm as before.
+void decrypt(char *ciphertext, char *plaintext_out, int *keystream, int len){ //same decryption algorithm as before.
     for(int i=0;i<strlen(ciphertext);i++){
         plaintext_out[i]=(char)(((((int)ciphertext[i])-keystream[i%len])+26-97)%26)+97;
     }
     plaintext_out[strlen(ciphertext)]='\0'; //null_terminating
 }
-
-// void multiply_matrices(int R1, int m1[R1][26], int key[26][26], char m_out[R1][26]){ //works when R1<26
-//     char letters[]="abcdefghijklmnopqrstuvwxyz";
-//     int temp[R1][26];
-//     for (int i = 0; i < R1; i++) {
-//         for (int j = 0; j < 26; j++) {
-//             m_out[i][j] = 0;
-//             temp[i][j]=0;
-//             for (int k = 0; k < 26; k++) {
-//                 temp[i][j] += (key[i][k] * m1[k][j])%26;
-//             }
-//             m_out[i][j]=letters[temp[i][j]%26];
-//         }
-//     }
-// }
-
-//TODO: THIS WILL ONLY WORK FOR NUMPACKS<26 !!
-void hill_encrypt(int numpacks, char packets_in[numpacks][26],int hillkey[26][26], char packets_out[numpacks][26]){ //packets_in X hillkey
-    //we split up packets_out into blocks of m[R1][26] where R1<26;
-    //then perform hill encryption to the block and add it to packets_out.
-    // int numpacks_left=numpacks;
-    // int count=0;
-    // while(numpacks_left>0){ //iterating through the packets 26 at a time
-    //     if(numpacks_left>26){ //encrypt a block of 26 packets and add it to packets_out
-    //         int packets[26][26];
-    //         for(int i=0;i<26;i++){
-    //             for(int j=0;j<26;j++){
-    //                 packets[i][j]=(((int)packets_in[count][j])+26-97)%26; //taking the number of that character.
-    //             }
-    //             count++;
-    //         }
-    //         char temp[26][26];
-    //         multiply_matrices(26,packets,hillkey,temp);
-    //         int j=0;
-    //         for(int i=numpacks-numpacks_left;i<26;i++){
-    //             strcpy(packets_out[i],temp[j++]);
-    //         }
-    //     }
-        //else{ //encrypt the numpacks_left into packets_out
-            char letters[]="abcdefghijklmnopqrstuvwxyz";
-            int packets[numpacks][26];
-            for(int i=0;i<numpacks;i++){
-                for(int j=0;j<26;j++){
-                    packets[i][j]=(((int)packets_in[i][j])+26-97)%26; //taking the number of that character.
-                }
-            }
-
-            int result[numpacks][26];
-            for (int i = 0; i < numpacks; i++) {
-                for (int j = 0; j < 26; j++) {
-                    result[i][j] = 0;
-                    packets_out[i][j]='\0';
-
-                    for (int k = 0; k < 26; k++) {
-                        result[i][j] += (packets[i][k] * hillkey[k][j])%26;
-                    }
-                    packets_out[i][j]=letters[result[i][j]%26];
-                }
-            }
-
-        //}
-    //}
-}
-
-
-void hill_decrypt(){} //TODO: DO THIS ASAP IMP
-
-void insertjunkintostream(char *ciphertext_in, char *ciphertext_out){
-    char letters[]="abcdefghijklmnopqrstuvwxyz";
-    srand(time(0));
-    int len=strlen(ciphertext_in);
-    int count=0, j=0;
-    for(int i=0;i<len;i++){
-            ciphertext_out[count++]=letters[rand()%strlen(letters)]; //junk character
-            ciphertext_out[count++]=ciphertext_in[j++]; //real character
-    }
-    ciphertext_out[count]='\0';
-}
-void removejunkfromstream(char *ciphertext_in, char *ciphertext_out){  //TODO: IMP might not work. check.
-    // takes every other character only.
-//please note that this has no cryptographic value. it is only to increase the number of packets.
-//this is ovious from the fact that it is not relying on the key.
-//TODO: Take a call on wether this is actually useful or if the number of packets dont matter.
-    int len=strlen(ciphertext_in);
-    int count=0;
-    if(len%2!=0){printf("ERROR: len in remove junk is not even!");}
-    for(int i=0;i<len;i++){ //len is even
-            i++; //junk character.
-            ciphertext_out[count++]=ciphertext_in[i]; //real character
-    }
-    ciphertext_out[count]='\0';
-}
-
-void getCofactor(int mat[26][26], int temp[26][26], int p, int q, int n){ //I copied this code from GFG pls forgive.
-    int i = 0, j = 0;
-    // Looping for each element of the matrix
-    for (int row = 0; row < n; row++){
-        for (int col = 0; col < n; col++) { // Copying into temporary matrix only those element which are not in given row and column
-            if (row != p && col != q) {
-                temp[i][j++] = mat[row][col]; //Row is filled, so increase row index and reset col index
-                if (j == n - 1) {
-                    j = 0;
-                    i++;
-                }
-            }
-        }
-    }
-}
-
-int determinantOfMatrix(int mat[26][26], int n){ //copied this code from GFG sorry
-    long long int D = 0; // Initialize result
-    if (n == 1)  //  Base case : if matrix contains single element
-        return mat[0][0];
-    int temp[26][26]; // To store cofactors
-    int sign = 1; // To store sign multiplier
-    // Iterate for each element of first row
-    for (int f = 0; f < n; f++){ //gemini helped with this code. please forgive. i didnt know how to do it modulo 26.
-        getCofactor(mat, temp, 0, f, n); // Getting Cofactor of mat[0][f]
-        long long int term= (long long)sign * mat[0][f];
-        term = (term % 26 + 26) % 26;
-        long long sub_det=determinantOfMatrix(temp, n - 1);
-        sub_det = (sub_det % 26 + 26) % 26;
-        long long product = term * sub_det; 
-        product = (product % 26 + 26) % 26;
-        D = (D + product) % 26;
-        D = (D + 26) % 26;
-        sign = -sign; // Terms are to be added with alternate sign
-    }
-    return D;
-}
-
-int get_gcd(int a, int b){ //copied this code from gfg, pls forgive.
-    int result = ((a < b) ? a : b); // Find Minimum of a and b
-    while (result > 0) {
-        if (a % result == 0 && b % result == 0) {
-            break;
-        }
-        result--;
-    }    
-    return result; // Return gcd of a and b
-}
-
-void makehillkey(int seed, int hillkey_out[26][26]){ //TODO: IMP IMPROVE EFFICIENCY BY GAUSSIAN ELIMINATION
-    srand(seed);
-    int len=26;
-    int det=0, gcd=0;
-    do{
-        for(int i=0;i<len;i++){
-            for(int j=0;j<len;j++){
-                hillkey_out[i][j]=rand()%26;
-            }
-        }
-        det=determinantOfMatrix(hillkey_out,26);
-        det=det%26;
-        gcd=get_gcd(det,26);
-    }while(gcd!=1);
-} 
 
 int makefirstanswerkey(int *keystream, int len_of_keystream, char *first_answer, int *keystream_out, int seed){
     int len_out=(strlen(first_answer)<len_of_keystream)?strlen(first_answer):len_of_keystream;
@@ -429,7 +278,7 @@ void makepackets(char *ciphertext, char packets_out[][26]){ //same as before
     }
 }
 
-int makejunk(char packets_out[][26], int hillkey[][26]){ 
+int makejunk(char packets_out[][26]){ //same as before
     char randtext[]="philosophyofeducationisalabelappliedtothestudyofthepurposeprocessnatureandidealsofeducationitcanbeconsideredabranchofbothphilosophyandeducationeducationcanbedefinedastheteachingandlearningofspecificskillsandtheimpartingofknowledgejudgmentandwisdomandissomethingbroaderthanthesocietalinstitutionofeducationweoftenspeakofmanyeducationalistsconsideritaweakandwoollyfieldtoofarremovedfromthepracticalapplicationsoftherealworldtobeusefulbutphilosophersdatingbacktoplatoandtheancientgreekshavegiventheareamuchthoughtandemphasisandthereislittledoubtthattheirworkhashelpedshapethepracticeofeducationoverthemillenniaplatoistheearliestimportanteducationalthinkerandeducationisanessentialelementintherepublichismostimportantworkonphilosophyandpoliticaltheorywrittenaroundbcinitheadvocatessomeratherextrememethodsremovingchildrenfromtheirmotherscareandraisingthemaswardsofthestateanddifferentiatingchildrensuitabletothevariouscastesthehighestreceivingthemosteducationsothattheycouldactasguardiansofthecityandcareforthelessablehebelievedthateducationshouldbeholisticincludingfactsskillsphysicaldisciplinemusicandartplatobelievedthattalentandintelligenceisnotdistributedgeneticallyandthusisbefoundinchildrenborntoallclassesalthoughhisproposedsystemofselectivepubliceducationforaneducatedminorityofthepopulationdoesnotreallyfollowademocraticmodelaristotleconsideredhumannaturehabitandreasontobeequallyimportantforcestobecultivatedineducationtheultimateaimofwhichshouldbetoproducegoodandvirtuouscitizensheproposedthatteachersleadtheirstudentssystematicallyandthatrepetitionbeusedasakeytooltodevelopgoodhabitsunlikesocratesemphasisonquestioninghislistenerstobringouttheirownideasheemphasizedthebalancingofthetheoreticalandpracticalaspectsofsubjectstaughtamongwhichheexplicitlymentionsreadingwritingmathematicsmusicphysicaleducationliteraturehistoryandawiderangeofsciencesaswellasplaywhichhealsoconsideredimportantduringthemedievalperiodtheideaofperennialismwasfirstformulatedbystthomasaquinashisinworkdemagistroperennialismholdsthatoneshouldteachthosethingsdeemedtobeofeverlastingimportancetoallpeopleeverywherenamelyprinciplesandreasoningnotjustfactswhichareapttochangeovertimeandthatoneshouldteachfirstaboutpeoplenotmachinesortechniquesitwasoriginallyreligiousinnatureanditwasonlymuchlaterthatatheoryofsecularperennialismdevelopedduringtherenaissancethefrenchskepticmicheldemontaignewasoneofthefirsttocriticallylookateducationunusuallyforhistimemontaignewaswillingtoquestiontheconventionalwisdomoftheperiodcallingintoquestionthewholeedificeoftheeducationalsystemandtheimplicitassumptionthatuniversityeducatedphilosopherswerenecessarilywiserthanuneducatedfarmworkersforexample";
     //were going with this rand text instead of just taking random characters one at a time so that people cant detect junk usinc Index of Coincidence.
     //this is still easily breakable.
@@ -443,17 +292,11 @@ int makejunk(char packets_out[][26], int hillkey[][26]){
     plainrandtext[rand_len] = '\0';
 
     char cipherrandtext[100];
-    char cipherjunktext[500];
     int key[100];
     int len=makekey(plainrandtext,randtext,key);
-    vigenerre_encrypt(plainrandtext,cipherrandtext,key,len);
-    insertjunkintostream(cipherrandtext,cipherjunktext);
-
-    int num=(int)ceil(strlen(cipherjunktext)/18.0);
-    char packets[num][26];
-    makepackets(cipherjunktext,packets);
-    hill_encrypt(num,packets,hillkey,packets_out);
-
+    encrypt(plainrandtext,cipherrandtext,key,len);
+    int num=(int)ceil(strlen(cipherrandtext)/18.0);
+    makepackets(cipherrandtext,packets_out);
     return(rand_len);
 
 }
@@ -598,37 +441,20 @@ void writepacketsintofiles(char packetpaths[][513],int numpacks,char packets[][2
 void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_given, int seed_passed){
     char ciphertext[200];
 
-    vigenerre_encrypt(plaintext,ciphertext,key_given,len_of_key_given);
-    //now ciphertext has vigenerre encrypted plaintext
+    encrypt(plaintext,ciphertext,key_given,len_of_key_given);
 
-    char cipherjunktext[500];
-    insertjunkintostream(ciphertext,cipherjunktext);
-    //now ciphertext is filled with junk making it longer and slightly disturbing frequency analysis.
-
-    // now distributing contents based on seed.
-    int numpacks=(int)ceil(strlen(cipherjunktext)/18.0);
-    if(numpacks>25){printf("ERROR: contents too long.");exit(1);}
+    // now distributing contents based on all three seeds.
+    int numpacks=(int)ceil(strlen(ciphertext)/18.0);
     char packets[numpacks][26];
     char packetnames[numpacks][100];
     char packetpaths[numpacks][513]; //maybe make this 313
-    char junkpaths[26][513];
-    char junk [26][26]; 
+    char junkpaths[30][513];
+    char junk [30][26]; 
     int junkkeystream[100];
-    for(int i=0;i<26;i++){for(int j=0;j<26;j++){junk[i][j]='\0';}}
+    for(int i=0;i<30;i++){for(int j=0;j<26;j++){junk[i][j]='\0';}}
 
-
-    makepackets(cipherjunktext,packets);
-    //now packets have the ciphertext with the junk with the metadata(unencrypted)
-
-    char newpackets[numpacks][26];
-
-    int hillkey[26][26];
-    makehillkey(seed_passed,hillkey);
-    hill_encrypt(numpacks,packets,hillkey,newpackets);
-    //now newpackets have the final encrypted packets (even metadata is encrypted.)
-
-    int len_of_junk=makejunk(junk,hillkey);
-
+    makepackets(ciphertext,packets);
+    int len_of_junk=makejunk(junk);
     int junkkeylen=makejunkkeystream(junkkeystream);
 
     namepackets(packetnames,numpacks,seed_passed);//needs to be reproducible, based on all seed
@@ -636,7 +462,7 @@ void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_giv
 
     getpaths(packetpaths,packetnames,numpacks,seed_passed);
 
-    writepacketsintofiles(packetpaths,numpacks,newpackets,junkpaths,(int)ceil(len_of_junk/18.0),junk,key_given,len_of_key_given);
+    writepacketsintofiles(packetpaths,numpacks,packets,junkpaths,(int)ceil(len_of_junk/18.0),junk,key_given,len_of_key_given);
     printf("Encrypted and Saved.");
 }
 
@@ -770,7 +596,7 @@ void getfullplaintext(int *keystream, int len_of_key, int seed, char *plaintext_
     //maybe this is a security issue. TODO: check and fix if needed.
     getpackets(numpackets,packetpaths,packets); 
     openpackets(ciphertext,packets,numpackets); 
-    vigenerre_decrypt(ciphertext, plaintext, keystream, len_of_key);
+    decrypt(ciphertext, plaintext, keystream, len_of_key);
     strcpy(plaintext_out,plaintext);
 }
 

@@ -282,7 +282,8 @@ void insertjunkintostream(char *ciphertext_in, char *ciphertext_out){
     int count=0, j=0;
     for(int i=0;i<len;i++){
             ciphertext_out[count++]=letters[rand()%strlen(letters)]; //junk character
-            ciphertext_out[count++]=ciphertext_in[j++]; //real character
+            ciphertext_out[count]=ciphertext_in[i]; //real character
+            printf("%c",ciphertext_out[count++]);
     }
     ciphertext_out[count]='\0';
 }
@@ -486,12 +487,12 @@ int makejunk(char packets_out[][26], int hillkey[][26]){
     int key[100];
     int len=makekey(plainrandtext,randtext,key);
     vigenerre_encrypt(plainrandtext,cipherrandtext,key,len);
-    insertjunkintostream(cipherrandtext,cipherjunktext);
+    //insertjunkintostream(cipherrandtext,cipherjunktext);
 
-    int num=(int)ceil(strlen(cipherjunktext)/18.0);
+    int num=(int)ceil(strlen(cipherrandtext)/18.0);
     char packets[num][26];
-    makepackets(cipherjunktext,packets);
-    hill_encrypt(num,packets,hillkey,packets_out);
+    makepackets(cipherrandtext,packets_out);
+    //hill_encrypt(num,packets,hillkey,packets_out);
 
     return(num);
 
@@ -664,8 +665,8 @@ void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_giv
     char newpackets[numpacks][26];
 
     int hillkey[26][26];
-    makehillkey_constructed(seed_passed,hillkey);
-    hill_encrypt(numpacks,packets,hillkey,newpackets);
+    //makehillkey_constructed(seed_passed,hillkey);
+    //hill_encrypt(numpacks,packets,hillkey,newpackets);
     //now newpackets have the final encrypted packets (even metadata is encrypted.)
 
     int numjunk=makejunk(junk,hillkey);
@@ -677,7 +678,7 @@ void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_giv
 
     getpaths(packetpaths,packetnames,numpacks,seed_passed);
 
-    writepacketsintofiles(packetpaths,numpacks,newpackets,junkpaths,numjunk,junk,key_given,len_of_key_given);
+    writepacketsintofiles(packetpaths,numpacks,packets,junkpaths,numjunk,junk,key_given,len_of_key_given);
     printf("Encrypted and Saved.");
 }
 
@@ -798,7 +799,7 @@ int getpacketnames(char packetnames_out[][100],int seed){
 
 void getfullplaintext(int *keystream, int len_of_key, int seed, char *plaintext_out){
     char plaintext[100];
-    char ciphertext[200];
+    char cipherjunktext[500];
     char packetnames[100][100];
     char packetpaths[100][513];
     int numpackets=getpacketnames(packetnames,seed);
@@ -810,7 +811,9 @@ void getfullplaintext(int *keystream, int len_of_key, int seed, char *plaintext_
     //there is no need to order the packets we get since getpacketnames gets the names in the same order as it was encrypted.
     //maybe this is a security issue. TODO: check and fix if needed.
     getpackets(numpackets,packetpaths,packets); 
-    openpackets(ciphertext,packets,numpackets); 
+    openpackets(cipherjunktext,packets,numpackets);
+    char ciphertext[200];
+    removejunkfromstream(cipherjunktext,ciphertext);
     vigenerre_decrypt(ciphertext, plaintext, keystream, len_of_key);
     strcpy(plaintext_out,plaintext);
 }

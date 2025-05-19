@@ -237,6 +237,74 @@ void hill_encrypt(int numpacks, char packets_in[numpacks][26], int hillkey[26][2
     multiply_matrices(numpacks, packets_num, hillkey, packets_out);
 }
 
+// Computes the inverse of a 26x26 matrix modulo 26 using Gauss-Jordan elimination.
+// Returns 1 on success, 0 if not invertible (should never happen with your construction).
+// input: the matrix to invert (26x26)
+// output: the resulting inverse (26x26)
+int modinv26(int a) { //github copilot mad ethis. pls forgive.
+    // Returns the modular inverse of a mod 26, or 0 if not invertible
+    a = a % 26;
+    for (int x = 1; x < 26; x++) {
+        if ((a * x) % 26 == 1) return x;
+    }
+    return 0;
+}
+
+int invertMatrixMod26(int input[26][26], int output[26][26]) { //github copilot made this. pls forgive.
+    int n = 26;
+    int aug[26][52];
+    // Set up augmented matrix [input | I]
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            aug[i][j] = input[i][j] % 26;
+            if (aug[i][j] < 0) aug[i][j] += 26;
+            aug[i][j + n] = (i == j) ? 1 : 0;
+        }
+    }
+    // Gauss-Jordan elimination
+    for (int col = 0; col < n; col++) {
+        // Find pivot
+        int pivot = -1;
+        for (int row = col; row < n; row++) {
+            if (aug[row][col] != 0 && modinv26(aug[row][col]) != 0) {
+                pivot = row;
+                break;
+            }
+        }
+        if (pivot == -1) return 0; // Not invertible
+        // Swap rows if needed
+        if (pivot != col) {
+            for (int k = 0; k < 2 * n; k++) {
+                int tmp = aug[col][k];
+                aug[col][k] = aug[pivot][k];
+                aug[pivot][k] = tmp;
+            }
+        }
+        // Scale pivot row
+        int inv = modinv26(aug[col][col]);
+        for (int k = 0; k < 2 * n; k++) {
+            aug[col][k] = (aug[col][k] * inv) % 26;
+            if (aug[col][k] < 0) aug[col][k] += 26;
+        }
+        // Eliminate other rows
+        for (int row = 0; row < n; row++) {
+            if (row == col) continue;
+            int factor = aug[row][col];
+            for (int k = 0; k < 2 * n; k++) {
+                aug[row][k] = (aug[row][k] - factor * aug[col][k]) % 26;
+                if (aug[row][k] < 0) aug[row][k] += 26;
+            }
+        }
+    }
+    // Extract inverse
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            output[i][j] = aug[i][j + n];
+        }
+    }
+    return 1;
+}
+
 // Decrypts numpacks packets using the Hill cipher key (by inverting the key) //copilot made this, pls forgive.
 void hill_decrypt(int numpacks, char packets_in[numpacks][26], int hillkey[26][26], char packets_out[numpacks][26]) {
     int invkey[26][26];
@@ -260,7 +328,7 @@ void insertjunkintostream(char *ciphertext_in, char *ciphertext_out){
     int count=0, j=0;
     for(int i=0;i<len;i++){
             ciphertext_out[count++]=letters[rand()%strlen(letters)]; //junk character
-            ciphertext_out[count]=ciphertext_in[i]; //real character
+            ciphertext_out[count++]=ciphertext_in[i]; //real character
     }
     ciphertext_out[count]='\0';
 }
@@ -333,75 +401,6 @@ void makehillkey(int seed, int hillkey_out[26][26]) { //github copilot made this
     // Now hillkey_out is a random invertible matrix mod 26, reproducible from the seed.
 }
 
-// Computes the inverse of a 26x26 matrix modulo 26 using Gauss-Jordan elimination.
-// Returns 1 on success, 0 if not invertible (should never happen with your construction).
-// input: the matrix to invert (26x26)
-// output: the resulting inverse (26x26)
-int modinv26(int a) { //github copilot mad ethis. pls forgive.
-    // Returns the modular inverse of a mod 26, or 0 if not invertible
-    a = a % 26;
-    for (int x = 1; x < 26; x++) {
-        if ((a * x) % 26 == 1) return x;
-    }
-    return 0;
-}
-
-int invertMatrixMod26(int input[26][26], int output[26][26]) { //github copilot made this. pls forgive.
-    int n = 26;
-    int aug[26][52];
-    // Set up augmented matrix [input | I]
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            aug[i][j] = input[i][j] % 26;
-            if (aug[i][j] < 0) aug[i][j] += 26;
-            aug[i][j + n] = (i == j) ? 1 : 0;
-        }
-    }
-    // Gauss-Jordan elimination
-    for (int col = 0; col < n; col++) {
-        // Find pivot
-        int pivot = -1;
-        for (int row = col; row < n; row++) {
-            if (aug[row][col] != 0 && modinv26(aug[row][col]) != 0) {
-                pivot = row;
-                break;
-            }
-        }
-        if (pivot == -1) return 0; // Not invertible
-        // Swap rows if needed
-        if (pivot != col) {
-            for (int k = 0; k < 2 * n; k++) {
-                int tmp = aug[col][k];
-                aug[col][k] = aug[pivot][k];
-                aug[pivot][k] = tmp;
-            }
-        }
-        // Scale pivot row
-        int inv = modinv26(aug[col][col]);
-        for (int k = 0; k < 2 * n; k++) {
-            aug[col][k] = (aug[col][k] * inv) % 26;
-            if (aug[col][k] < 0) aug[col][k] += 26;
-        }
-        // Eliminate other rows
-        for (int row = 0; row < n; row++) {
-            if (row == col) continue;
-            int factor = aug[row][col];
-            for (int k = 0; k < 2 * n; k++) {
-                aug[row][k] = (aug[row][k] - factor * aug[col][k]) % 26;
-                if (aug[row][k] < 0) aug[row][k] += 26;
-            }
-        }
-    }
-    // Extract inverse
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            output[i][j] = aug[i][j + n];
-        }
-    }
-    return 1;
-}
-
-
 int makefirstanswerkey(int *keystream, int len_of_keystream, char *first_answer, int *keystream_out, int seed){
     int len_out=(strlen(first_answer)<len_of_keystream)?strlen(first_answer):len_of_keystream;
     int randstream[len_out];
@@ -443,11 +442,13 @@ int makesecondanswerkey(int *keystream,int *key1, int key1len, char *second_answ
     return (len_out);
 }
 
-void makepackets(char *ciphertext, char packets_out[][26]){ //same as before
+void makepackets(char *ciphertext, char packets_out[][26]){ //only works for less than 26 packets.
+    //i know im wasting 4 characters per packet. wil lfix eventually.
+    char letters[]="abcdefghijklmnopqrstuvwxyz";
     int j=0;
     char temp[26]={'\0'};
     int counter=7;
-    sprintf(temp, "%03d%c%03d", (int)ceil(strlen(ciphertext)/18.0), ciphertext[0], j+1); //metadata that tells: num_of_packets, identifying attribute, packet_num
+    sprintf(temp, "aa%c%caa%c", letters[(int)ceil(strlen(ciphertext)/18.0)], ciphertext[0], letters[j+1]); //metadata that tells: num_of_packets, identifying attribute, packet_num
     for(int i=0;i<strlen(ciphertext);i++){
         temp[counter++]=ciphertext[i];
         if(counter==25){
@@ -483,12 +484,12 @@ int makejunk(char packets_out[][26], int hillkey[][26]){
     int key[100];
     int len=makekey(plainrandtext,randtext,key);
     vigenerre_encrypt(plainrandtext,cipherrandtext,key,len);
-    //insertjunkintostream(cipherrandtext,cipherjunktext);
+    insertjunkintostream(cipherrandtext,cipherjunktext);
 
     int num=(int)ceil(strlen(cipherrandtext)/18.0);
     char packets[num][26];
-    makepackets(cipherrandtext,packets_out);
-    //hill_encrypt(num,packets,hillkey,packets_out);
+    makepackets(cipherrandtext,packets_out); //TODO: change to packets when hill is done.
+    //hill_encrypt(num,packets,hillkey,packets_out); //TODO: yet to test
 
     return(num);
 
@@ -630,6 +631,70 @@ void writepacketsintofiles(char packetpaths[][513],int numpacks,char packets[][2
 
 }
 
+void write_metadata_packet(int numpacks, int *key_given, int len_of_key_given, int seed){ //writes one packet containing numpacks.
+
+    char onlyletters[]="abcdefghijklmnopqrstuvwxyz";
+    char plaintext[3]="a";
+    plaintext[1]=onlyletters[numpacks];
+    plaintext[2]='\0';
+    
+    char ciphertext[10];
+    vigenerre_encrypt(plaintext,ciphertext,key_given,len_of_key_given);
+    char cipherjunktext[30];
+    insertjunkintostream(ciphertext,cipherjunktext);
+
+    //now we write ciphertext into a filename got from seed+1_len_of_key_given;
+    char packetname[100];
+    char packetpath[513];
+    
+    char letters[]="abcdefghijklmnopqrstuvwxyz0123456789";
+    srand(9999*(seed+1+len_of_key_given)); //cause why not
+    for(int j=0;j<100;j++){
+        packetname[j]=letters[rand()%strlen(letters)];
+    }
+    packetname[99]='\0';
+
+    char subdirs[100][256];
+    int num_subdirs = get_subdirectories("storage", subdirs, 100); //gets (up to) 100 subdirs from storage.
+
+    int subdir_index = (rand()+2) % num_subdirs;  //chooses a number and takes subdir[that num]
+    sprintf(packetpath,"storage/%s/%s.txt", subdirs[subdir_index], packetname); //prints directory name into filepath   
+
+    writetofile(packetpath,cipherjunktext); //writing
+
+}
+
+int read_metadata_packet(int *key_given, int len_of_key_given, int seed){
+    char cipherjunktext[30];
+
+    char packetname[100];
+    char packetpath[513];
+    
+    char letters[]="abcdefghijklmnopqrstuvwxyz0123456789";
+    srand(9999*(seed+1+len_of_key_given)); //cause why not
+    for(int j=0;j<100;j++){
+        packetname[j]=letters[rand()%strlen(letters)];
+    }
+    packetname[99]='\0';
+
+    char subdirs[100][256];
+    int num_subdirs = get_subdirectories("storage", subdirs, 100); //gets (up to) 100 subdirs from storage.
+
+    int subdir_index = (rand()+2) % num_subdirs;  //chooses a number and takes subdir[that num]
+    sprintf(packetpath,"storage/%s/%s.txt", subdirs[subdir_index], packetname); //prints directory name into filepath   
+
+    readcontents(packetpath,cipherjunktext);
+
+    char ciphertext[10];
+
+    removejunkfromstream(cipherjunktext,ciphertext);
+
+    char plaintext[10];
+    vigenerre_decrypt(ciphertext,plaintext,key_given,len_of_key_given);
+    int numpacks=((int)plaintext[1]-97);
+    return(numpacks);
+
+}
 
 void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_given, int seed_passed){
     //TODO: CRITICAL: METADATA IS 001A002 AND HILL ENCRYPT IT MEANT TO HANDLE ONLY A-Z. ALSO CONTENTS OF PACKETS ARENT RIGHT.(so instead of 001, have it be aab or smthn like that k?)
@@ -654,6 +719,8 @@ void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_giv
     int junkkeystream[100];
     for(int i=0;i<26;i++){for(int j=0;j<26;j++){junk[i][j]='\0';}}
 
+    //TODO: in future, consider putting this also in with writepackets intofiles so that attacker doesnt know which is metadata.
+    write_metadata_packet(numpacks,key_given,len_of_key_given,seed_passed); //writes in number of files as one packet. so we can retrieve and read.
 
     makepackets(cipherjunktext,packets);
     //now packets have the ciphertext with the junk with the metadata(unencrypted)
@@ -661,8 +728,8 @@ void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_giv
     char newpackets[numpacks][26];
 
     int hillkey[26][26];
-    makehillkey(seed_passed,hillkey);
-    hill_encrypt(numpacks,packets,hillkey,newpackets);
+    //makehillkey(seed_passed,hillkey);
+    //hill_encrypt(numpacks,packets,hillkey,newpackets); //TODO: yet to test
     //now newpackets have the final encrypted packets (even metadata is encrypted.)
 
     int numjunk=makejunk(junk,hillkey);
@@ -674,8 +741,9 @@ void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_giv
 
     getpaths(packetpaths,packetnames,numpacks,seed_passed);
 
-    writepacketsintofiles(packetpaths,numpacks,newpackets,junkpaths,numjunk,junk,key_given,len_of_key_given);
-    printf("Encrypted and Saved.");
+    writepacketsintofiles(packetpaths,numpacks,packets,junkpaths,numjunk,junk,key_given,len_of_key_given);
+
+    printf("Encrypted and Saved.",seed_passed);
 }
 
 void signup(int *keystream, int len_of_key, int seed){
@@ -751,35 +819,10 @@ void openpackets(char *ciphertext_out, char packets[][26], int numpacks){ //same
     ciphertext_out[count]='\0';
 }
 
-int getpacketnames(char packetnames_out[][100],int seed){
+int getpacketnames(char packetnames_out[][100],int seed, int *key_given, int len_of_key){ //todo: open the metadata file and get numpacks
     char letters[]="abcdefghijklmnopqrstuvwxyz0123456789";
 
-    int numpackets=0;
-    srand(seed+0);
-    char firstpacketname[100];
-    for(int j=0;j<100;j++){
-        firstpacketname[j]=letters[rand()%strlen(letters)];
-    }
-    firstpacketname[99]='\0';
-    char firstpacketpath[513];
-
-    //getting first packet path
-    char subdirs[100][256];
-    int num_subdirs = get_subdirectories("storage", subdirs, 100); //gets (up to) 100 subdirs from storage.
-
-    //we get the first packet name this way as we know there must be atleast one packet.
-    // but we dont know how many packets there are, so we dont know how many names to generate.
-    // so we open the first packet and see the first 3 letters of metadata which tells us how many packets there are.
-    
-    srand(seed);
-    int subdir_index = rand() % num_subdirs;  //chooses a number and takes subdir[that num]
-    sprintf(firstpacketpath,"storage/%s/%s.txt", subdirs[subdir_index], firstpacketname); //prints directory name into filepath   
-
-    char firstpacket[26];
-    readcontents(firstpacketpath, firstpacket);    
-    char total_packets[4];
-    slice(total_packets,firstpacket,0,2);
-    numpackets=atoi(total_packets); //test this once.
+    int numpackets=read_metadata_packet(key_given,len_of_key,seed);
 
     for(int i=0;i<numpackets;i++){
         //we need to name the packets in a recreatable yet seemingly random way so that we can fetch those packets again but the guy cant.
@@ -798,17 +841,23 @@ void getfullplaintext(int *keystream, int len_of_key, int seed, char *plaintext_
     char cipherjunktext[500];
     char packetnames[100][100];
     char packetpaths[100][513];
-    int numpackets=getpacketnames(packetnames,seed);
+    int numpackets=getpacketnames(packetnames,seed,keystream,len_of_key);
 
     getpaths(packetpaths,packetnames,numpackets,seed);
 
-    char packets[numpackets][26];
+    char encrypted_packets[numpackets][26];
     
     //there is no need to order the packets we get since getpacketnames gets the names in the same order as it was encrypted.
     //maybe this is a security issue. TODO: check and fix if needed.
-    getpackets(numpackets,packetpaths,packets); 
-    openpackets(cipherjunktext,packets,numpackets);
-    char ciphertext[200];
+    getpackets(numpackets,packetpaths,encrypted_packets); 
+
+    char packets[numpackets][26];
+    int hillkey[26][26];
+    //makehillkey(seed,hillkey);
+    //hill_decrypt(numpackets,encrypted_packets,hillkey,packets);
+
+    openpackets(cipherjunktext,encrypted_packets,numpackets); //TODO: change this when you impliment hill.
+    char ciphertext[200]; 
     removejunkfromstream(cipherjunktext,ciphertext);
     vigenerre_decrypt(ciphertext, plaintext, keystream, len_of_key);
     strcpy(plaintext_out,plaintext);
@@ -886,15 +935,15 @@ void delete(int *keystream, int len_of_key, int seed){
 
     char packetnames[100][100];
     char packetpaths[100][513];
-    int numpackets=getpacketnames(packetnames,(seed*seed1*seed2)); 
+    int numpackets=getpacketnames(packetnames,(seed*seed1*seed2),keystream,len_of_key); //TODO: check if this is correct
     getpaths(packetpaths,packetnames,numpackets,(seed*seed1*seed2));
     deletepackets(packetpaths, numpackets);
     
-    numpackets=getpacketnames(packetnames,(seed*seed1)); 
+    numpackets=getpacketnames(packetnames,(seed*seed1),keystream,len_of_key); 
     getpaths(packetpaths,packetnames,numpackets,(seed*seed1));
     deletepackets(packetpaths, numpackets);
 
-    numpackets=getpacketnames(packetnames,(seed));
+    numpackets=getpacketnames(packetnames,(seed),keystream,len_of_key);
     getpaths(packetpaths,packetnames,numpackets,seed);
     deletepackets(packetpaths, numpackets);
 

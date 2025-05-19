@@ -4,19 +4,19 @@
 // i was thinking we could have alternate characters be junk. so that people cant use kasiski test to get the key and stuff.
 // the only point of this is to increase the number of packets the attacker needs to fetch and also the number of packets in the system 
 // so that its harder t brute force.
-//i think we should have a ratio of real files to junk files and try to achieve that at every point.
-//challenges i think will arise:
+// i think we should have a ratio of real files to junk files and try to achieve that at every point.
+// challenges i think will arise:
 //      how to encrypt using all 3 keys in a strong way?
 //      structure of getting key 2 and 3 from password and so on
 //      smarter generation of junk (achieving ratios)
-//look into qsort()
-//TODO: make sure ppl cant get to know length of key 1, 2 or 3. make sure packets stored are always of the same length
+// look into qsort()
+// TODO: make sure ppl cant get to know length of key 1, 2 or 3. make sure packets stored are always of the same length
 //      regardless of length of key.
 // TODO: encrypt the metadata and add a secodn layer of encryption to the whole thing. (layers and layered metadata encryption?)
 // TODO: once the encryption is better, encrypt it in layers using key 1, 2 and keystream instead of 1 tempkeystream like here.
-//in a future version, have it such that one user can have many contents
+// in a future version, have it such that one user can have many contents
 
-//TODO: IMP Obscure more. i.e when choosing directories, choose all directories atleast once.
+// TODO: IMP Obscure more. i.e when choosing directories, choose all directories atleast once.
 //      so that when attacker sees whic folders were changed when and cant go off of that.
 //      cause once attacker can see which folder was changed when, attacker can know which folders to see.
 //      so make *some* change in all folders.
@@ -209,71 +209,49 @@ void vigenerre_decrypt(char *ciphertext, char *plaintext_out, int *keystream, in
     plaintext_out[strlen(ciphertext)]='\0'; //null_terminating
 }
 
-// void multiply_matrices(int R1, int m1[R1][26], int key[26][26], char m_out[R1][26]){ //works when R1<26
-//     char letters[]="abcdefghijklmnopqrstuvwxyz";
-//     int temp[R1][26];
-//     for (int i = 0; i < R1; i++) {
-//         for (int j = 0; j < 26; j++) {
-//             m_out[i][j] = 0;
-//             temp[i][j]=0;
-//             for (int k = 0; k < 26; k++) {
-//                 temp[i][j] += (key[i][k] * m1[k][j])%26;
-//             }
-//             m_out[i][j]=letters[temp[i][j]%26];
-//         }
-//     }
-// }
-
-//TODO: THIS WILL ONLY WORK FOR NUMPACKS<26 !!
-void hill_encrypt(int numpacks, char packets_in[numpacks][26],int hillkey[26][26], char packets_out[numpacks][26]){ //packets_in X hillkey
-    //we split up packets_out into blocks of m[R1][26] where R1<26;
-    //then perform hill encryption to the block and add it to packets_out.
-    // int numpacks_left=numpacks;
-    // int count=0;
-    // while(numpacks_left>0){ //iterating through the packets 26 at a time
-    //     if(numpacks_left>26){ //encrypt a block of 26 packets and add it to packets_out
-    //         int packets[26][26];
-    //         for(int i=0;i<26;i++){
-    //             for(int j=0;j<26;j++){
-    //                 packets[i][j]=(((int)packets_in[count][j])+26-97)%26; //taking the number of that character.
-    //             }
-    //             count++;
-    //         }
-    //         char temp[26][26];
-    //         multiply_matrices(26,packets,hillkey,temp);
-    //         int j=0;
-    //         for(int i=numpacks-numpacks_left;i<26;i++){
-    //             strcpy(packets_out[i],temp[j++]);
-    //         }
-    //     }
-        //else{ //encrypt the numpacks_left into packets_out
-            char letters[]="abcdefghijklmnopqrstuvwxyz";
-            int packets[numpacks][26];
-            for(int i=0;i<numpacks;i++){
-                for(int j=0;j<26;j++){
-                    packets[i][j]=(((int)packets_in[i][j])+26-97)%26; //taking the number of that character.
-                }
+// Multiplies a set of row vectors (R1 x 26) by a 26x26 key matrix for Hill cipher encryption.
+// m1: R1 x 26 matrix (each row is a message vector)
+// key: 26x26 Hill cipher key
+// m_out: R1 x 26 output (each row is the encrypted vector as lowercase letters)
+void multiply_matrices(int R1, int m1[R1][26], int key[26][26], char m_out[R1][26]) { //copilot helped with this, pls forgive.
+    char letters[] = "abcdefghijklmnopqrstuvwxyz";
+    for (int i = 0; i < R1; i++) {
+        for (int j = 0; j < 26; j++) {
+            int sum = 0;
+            for (int k = 0; k < 26; k++) {
+                sum = (sum + m1[i][k] * key[k][j]) % 26;
             }
-
-            int result[numpacks][26];
-            for (int i = 0; i < numpacks; i++) {
-                for (int j = 0; j < 26; j++) {
-                    result[i][j] = 0;
-                    packets_out[i][j]='\0';
-
-                    for (int k = 0; k < 26; k++) {
-                        result[i][j] += (packets[i][k] * hillkey[k][j])%26;
-                    }
-                    packets_out[i][j]=letters[result[i][j]%26];
-                }
-            }
-
-        //}
-    //}
+            m_out[i][j] = letters[(sum + 26) % 26];
+        }
+    }
 }
 
+// Encrypts numpacks packets using the Hill cipher key (packets_in × hillkey) //copilot helped with this, pls forgive.
+void hill_encrypt(int numpacks, char packets_in[numpacks][26], int hillkey[26][26], char packets_out[numpacks][26]) {
+    int packets_num[numpacks][26];
+    for (int i = 0; i < numpacks; i++) {
+        for (int j = 0; j < 26; j++) {
+            packets_num[i][j] = ((int)packets_in[i][j] + 26 - 97) % 26;
+        }
+    }
+    multiply_matrices(numpacks, packets_num, hillkey, packets_out);
+}
 
-void hill_decrypt(){} //TODO: DO THIS ASAP IMP
+// Decrypts numpacks packets using the Hill cipher key (by inverting the key) //copilot made this, pls forgive.
+void hill_decrypt(int numpacks, char packets_in[numpacks][26], int hillkey[26][26], char packets_out[numpacks][26]) {
+    int invkey[26][26];
+    if (!invertMatrixMod26(hillkey, invkey)) {
+        printf("Error: Hill key is not invertible!\n");
+        return;
+    }
+    int packets_num[numpacks][26];
+    for (int i = 0; i < numpacks; i++) {
+        for (int j = 0; j < 26; j++) {
+            packets_num[i][j] = ((int)packets_in[i][j] + 26 - 97) % 26;
+        }
+    }
+    multiply_matrices(numpacks, packets_num, invkey, packets_out);
+}
 
 void insertjunkintostream(char *ciphertext_in, char *ciphertext_out){
     char letters[]="abcdefghijklmnopqrstuvwxyz";
@@ -283,7 +261,6 @@ void insertjunkintostream(char *ciphertext_in, char *ciphertext_out){
     for(int i=0;i<len;i++){
             ciphertext_out[count++]=letters[rand()%strlen(letters)]; //junk character
             ciphertext_out[count]=ciphertext_in[i]; //real character
-            printf("%c",ciphertext_out[count++]);
     }
     ciphertext_out[count]='\0';
 }
@@ -302,59 +279,6 @@ void removejunkfromstream(char *ciphertext_in, char *ciphertext_out){  //TODO: I
     ciphertext_out[count]='\0';
 }
 
-int get_gcd(int a, int b) { //gemini made this. pls forgive
-    a = (a > 0) ? a : -a; // Ensure numbers are non-negative for GCD calculation
-    b = (b > 0) ? b : -b;
-    while (b != 0) {
-        int temp = b;
-        b = a % b;
-        a = temp;
-    }
-    return a;
-}
-
-int my_get_gcd(int a, int b)
-{
-    // Find Minimum of a and b
-    int result = ((a < b) ? a : b);
-    while (result > 0) {
-        if (a % result == 0 && b % result == 0) {
-            break;
-        }
-        result--;
-    }
-    
-    return result; // Return gcd of a and b
-}
-// Function to multiply two 26x26 matrices modulo 26
-// Result = MatrixA * MatrixB (mod 26)
-// Parameters:
-//   MatrixA: The first matrix (26x26)
-//   MatrixB: The second matrix (26x26)
-//   Result: The output matrix (26x26) where the product will be stored
-void multiplyMatricesMod26(int MatrixA[26][26], int MatrixB[26][26], int Result[26][26]) {
-    int n = 26; // Size of the matrices
-
-    // Iterate through rows of Result (and MatrixA)
-    for (int i = 0; i < n; i++) {
-        // Iterate through columns of Result (and MatrixB)
-        for (int j = 0; j < n; j++) {
-            Result[i][j] = 0; // Initialize the element of the result matrix to 0
-
-            // Iterate through the inner dimension (columns of A, rows of B)
-            for (int k = 0; k < n; k++) {
-                // Perform multiplication and addition modulo 26
-                // Result[i][j] += (MatrixA[i][k] * MatrixB[k][j]) % 26;
-                // Ensure intermediate products are positive before adding and taking modulo
-                int term = (MatrixA[i][k] * MatrixB[k][j]);
-                Result[i][j] = (Result[i][j] + (term % 26 + 26) % 26) % 26;
-            }
-             // Ensure the final sum is in the range [0, 25]
-             Result[i][j] = (Result[i][j] % 26 + 26) % 26;
-        }
-    }
-}
-
 
 // New function to generate a 26x26 invertible Hill cipher key matrix
 // using the L*U construction method.
@@ -362,50 +286,122 @@ void multiplyMatricesMod26(int MatrixA[26][26], int MatrixB[26][26], int Result[
 // Parameters:
 //   seed: The seed for the random number generator (to make key generation reproducible)
 //   hillkey_out: The output matrix (26x26) where the invertible key will be stored
-void makehillkey_constructed(int seed, int hillkey_out[26][26]) {
+void makehillkey(int seed, int hillkey_out[26][26]) { //github copilot made this. pls forgive.
     srand(seed); // Seed the random number generator
-
-    int n = 26; // Size of the matrices
-
-    // Declare temporary matrices for Lower (L) and Upper (U) triangular matrices
-    int matrix_L[26][26];
-    int matrix_U[26][26];
-
-    // --- Step 1: Generate a random Lower Triangular matrix (L) with 1s on the diagonal ---
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
+    
+    // This function generates a 26x26 invertible matrix modulo 26 using the L*U construction method.
+    // The matrix is always invertible mod 26, and the process is deterministic for a given seed.
+    // L: lower-triangular with 1s on the diagonal (invertible mod 26)
+    // U: upper-triangular with random nonzero diagonal (invertible mod 26)
+    int L[26][26] = {0};
+    int U[26][26] = {0};
+    // Fill L (lower-triangular, 1s on diagonal)
+    for (int i = 0; i < 26; i++) {
+        for (int j = 0; j <= i; j++) {
             if (i == j) {
-                matrix_L[i][j] = 1; // Set diagonal elements to 1
-            } else if (i > j) {
-                matrix_L[i][j] = rand() % 26; // Fill elements below the diagonal with random values 0-25
-            } else { // i < j
-                matrix_L[i][j] = 0; // Set elements above the diagonal to 0
+                L[i][j] = 1; // 1s on diagonal
+            } else {
+                L[i][j] = rand() % 26; // random element in Z26
             }
         }
     }
-
-    // --- Step 2: Generate a random Upper Triangular matrix (U) with 1s on the diagonal ---
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
+    // Fill U (upper-triangular, random nonzero diagonal)
+    for (int i = 0; i < 26; i++) {
+        for (int j = i; j < 26; j++) {
             if (i == j) {
-                matrix_U[i][j] = 1; // Set diagonal elements to 1
-            } else if (i < j) {
-                matrix_U[i][j] = rand() % 26; // Fill elements above the diagonal with random values 0-25
-            } else { // i > j
-                matrix_U[i][j] = 0; // Set elements below the diagonal to 0
+                // Diagonal must be coprime to 26 (i.e., odd and not divisible by 13)
+                int val = (rand() % 25) + 1; // 1..25
+                while (val % 2 == 0 || val % 13 == 0) {
+                    val = (rand() % 25) + 1;
+                }
+                U[i][j] = val;
+            } else {
+                U[i][j] = rand() % 26;
             }
         }
     }
-
-    // --- Step 3: Calculate the key matrix K = L * U modulo 26 ---
-    // The determinant of L is 1, determinant of U is 1.
-    // Determinant of K = det(L) * det(U) = 1 * 1 = 1 (mod 26).
-    // A matrix with determinant 1 mod 26 is guaranteed to be invertible mod 26.
-    multiplyMatricesMod26(matrix_L, matrix_U, hillkey_out);
-
-    // The hillkey_out matrix now contains a guaranteed invertible key.
-    // No need for a loop or determinant check!
+    // Multiply L and U to get the final key matrix (mod 26)
+    for (int i = 0; i < 26; i++) {
+        for (int j = 0; j < 26; j++) {
+            int sum = 0;
+            for (int k = 0; k < 26; k++) {
+                sum = (sum + L[i][k] * U[k][j]) % 26;
+            }
+            hillkey_out[i][j] = sum;
+        }
+    }
+    // Now hillkey_out is a random invertible matrix mod 26, reproducible from the seed.
 }
+
+// Computes the inverse of a 26x26 matrix modulo 26 using Gauss-Jordan elimination.
+// Returns 1 on success, 0 if not invertible (should never happen with your construction).
+// input: the matrix to invert (26x26)
+// output: the resulting inverse (26x26)
+int modinv26(int a) { //github copilot mad ethis. pls forgive.
+    // Returns the modular inverse of a mod 26, or 0 if not invertible
+    a = a % 26;
+    for (int x = 1; x < 26; x++) {
+        if ((a * x) % 26 == 1) return x;
+    }
+    return 0;
+}
+
+int invertMatrixMod26(int input[26][26], int output[26][26]) { //github copilot made this. pls forgive.
+    int n = 26;
+    int aug[26][52];
+    // Set up augmented matrix [input | I]
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            aug[i][j] = input[i][j] % 26;
+            if (aug[i][j] < 0) aug[i][j] += 26;
+            aug[i][j + n] = (i == j) ? 1 : 0;
+        }
+    }
+    // Gauss-Jordan elimination
+    for (int col = 0; col < n; col++) {
+        // Find pivot
+        int pivot = -1;
+        for (int row = col; row < n; row++) {
+            if (aug[row][col] != 0 && modinv26(aug[row][col]) != 0) {
+                pivot = row;
+                break;
+            }
+        }
+        if (pivot == -1) return 0; // Not invertible
+        // Swap rows if needed
+        if (pivot != col) {
+            for (int k = 0; k < 2 * n; k++) {
+                int tmp = aug[col][k];
+                aug[col][k] = aug[pivot][k];
+                aug[pivot][k] = tmp;
+            }
+        }
+        // Scale pivot row
+        int inv = modinv26(aug[col][col]);
+        for (int k = 0; k < 2 * n; k++) {
+            aug[col][k] = (aug[col][k] * inv) % 26;
+            if (aug[col][k] < 0) aug[col][k] += 26;
+        }
+        // Eliminate other rows
+        for (int row = 0; row < n; row++) {
+            if (row == col) continue;
+            int factor = aug[row][col];
+            for (int k = 0; k < 2 * n; k++) {
+                aug[row][k] = (aug[row][k] - factor * aug[col][k]) % 26;
+                if (aug[row][k] < 0) aug[row][k] += 26;
+            }
+        }
+    }
+    // Extract inverse
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            output[i][j] = aug[i][j + n];
+        }
+    }
+    return 1;
+}
+
+
 int makefirstanswerkey(int *keystream, int len_of_keystream, char *first_answer, int *keystream_out, int seed){
     int len_out=(strlen(first_answer)<len_of_keystream)?strlen(first_answer):len_of_keystream;
     int randstream[len_out];
@@ -665,8 +661,8 @@ void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_giv
     char newpackets[numpacks][26];
 
     int hillkey[26][26];
-    //makehillkey_constructed(seed_passed,hillkey);
-    //hill_encrypt(numpacks,packets,hillkey,newpackets);
+    makehillkey(seed_passed,hillkey);
+    hill_encrypt(numpacks,packets,hillkey,newpackets);
     //now newpackets have the final encrypted packets (even metadata is encrypted.)
 
     int numjunk=makejunk(junk,hillkey);
@@ -678,7 +674,7 @@ void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_giv
 
     getpaths(packetpaths,packetnames,numpacks,seed_passed);
 
-    writepacketsintofiles(packetpaths,numpacks,packets,junkpaths,numjunk,junk,key_given,len_of_key_given);
+    writepacketsintofiles(packetpaths,numpacks,newpackets,junkpaths,numjunk,junk,key_given,len_of_key_given);
     printf("Encrypted and Saved.");
 }
 

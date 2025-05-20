@@ -456,7 +456,7 @@ void makepackets(char *ciphertext, char packets_out[][26]){ //only works for les
             strcpy(packets_out[j++],temp);
             if (j>98){return;}
             for(int k=0;k<26;k++){temp[k]='\0';}
-            sprintf(temp, "%03d%c%03d", (int)ceil(strlen(ciphertext)/18.0), ciphertext[0], j+1); //metadata that tells: num_of_packets, identifying attribute, packet_num
+            sprintf(temp, "aa%c%caa%c", letters[(int)ceil(strlen(ciphertext)/18.0)], ciphertext[0], letters[j+1]); //metadata that tells: num_of_packets, identifying attribute, packet_num
             counter=7;
         }
     }
@@ -903,7 +903,44 @@ void my_read(int *keystream, int len_of_key, int seed){
     printf("%s",plaintext);
 }
 
-void delete(int *keystream, int len_of_key, int seed){
+void handledeletion(int *keystream, int len_of_key_given, int seed){
+    char plaintext[100];
+    char cipherjunktext[500];
+    char packetnames[100][100];
+    char packetpaths[100][513];
+    int numpackets=getpacketnames(packetnames,seed,keystream,len_of_key_given);
+
+    getpaths(packetpaths,packetnames,numpackets,seed);
+
+    char encrypted_packets[numpackets][26];
+    
+    deletepackets(packetpaths, numpackets);
+
+    char packetname[100];
+    char packetpath[513];
+
+    char letters[]="abcdefghijklmnopqrstuvwxyz0123456789";
+    srand(9999*(seed+1+len_of_key_given)); //cause why not
+    for(int j=0;j<100;j++){
+        packetname[j]=letters[rand()%strlen(letters)];
+    }
+    packetname[99]='\0';
+
+    char subdirs[100][256];
+    int num_subdirs = get_subdirectories("storage", subdirs, 100); //gets (up to) 100 subdirs from storage.
+
+    int subdir_index = (rand()+2) % num_subdirs;  //chooses a number and takes subdir[that num]
+    sprintf(packetpath,"storage/%s/%s.txt", subdirs[subdir_index], packetname); //prints directory name into filepath   
+
+    if (remove(packetpath) == 0) {
+            printf("File deleted successfully.\n");
+    } else {
+            printf("Error: Unable to delete the file: %s\n",packetpath);
+        }
+
+}
+
+void delete(int *keystream, int len_of_key, int seed){ //TODO: CRITICAL: DOESNT WORK. FIX THIS. ASAP IMP
     char plaintext[100];
     int first_key[100];
     int key1len;
@@ -913,6 +950,10 @@ void delete(int *keystream, int len_of_key, int seed){
     int tempkeylen;
     int seed1;
     int seed2;
+
+    //locations of key1 is from seed and encryption is from keystream.
+    //locations of key2 is from seed1 and seed and encryption is from keystream and key1.
+    //locations of contents is from seed2, seed1 and seed and encryption is from keystream, key1 and key2.
 
     //getting decrypted key1 using seed and keystream
     getfullplaintext(keystream, len_of_key, seed, plaintext);
@@ -930,22 +971,16 @@ void delete(int *keystream, int len_of_key, int seed){
     seed2=getuniquetouserseed(second_key,key2len);
     for(int i=0;i<100;i++){plaintext[i]='\0';tempkey[i]=0;}
 
-    //now we have all 3 seeds.
-    for(int i=0;i<100;i++){first_key[i]=0;second_key[i]=0;}
+    //getting decrypted contents using seed2, seed1 and seed and keystream and key1 and key2
+    tempkeylen=key2len;
+    for(int i=0;i<tempkeylen;i++){tempkey[i]=(keystream[i]+first_key[i]+second_key[i])%26;}
+    handledeletion(tempkey, tempkeylen, (seed*seed1*seed2)); //contents deletion
 
-    char packetnames[100][100];
-    char packetpaths[100][513];
-    int numpackets=getpacketnames(packetnames,(seed*seed1*seed2),keystream,len_of_key); //TODO: check if this is correct
-    getpaths(packetpaths,packetnames,numpackets,(seed*seed1*seed2));
-    deletepackets(packetpaths, numpackets);
-    
-    numpackets=getpacketnames(packetnames,(seed*seed1),keystream,len_of_key); 
-    getpaths(packetpaths,packetnames,numpackets,(seed*seed1));
-    deletepackets(packetpaths, numpackets);
+    tempkeylen=key1len;
+    for(int i=0;i<tempkeylen;i++){tempkey[i]=(keystream[i]+first_key[i])%26;}
+    handledeletion(tempkey, tempkeylen, (seed*seed1)); //key2 deletion
 
-    numpackets=getpacketnames(packetnames,(seed),keystream,len_of_key);
-    getpaths(packetpaths,packetnames,numpackets,seed);
-    deletepackets(packetpaths, numpackets);
+    handledeletion(keystream, len_of_key, seed); //key1 deletion
 
 }
 

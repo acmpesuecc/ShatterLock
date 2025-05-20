@@ -228,13 +228,6 @@ void multiply_matrices(int R1, int m1[R1][26], int key[26][26], char m_out[R1][2
 
 // Encrypts numpacks packets using the Hill cipher key (packets_in × hillkey) //copilot helped with this, pls forgive.
 void hill_encrypt(int numpacks, char packets_in[numpacks][26], int hillkey[26][26], char packets_out[numpacks][26]) {
-    int packets_num[numpacks][26];
-    for (int i = 0; i < numpacks; i++) {
-        for (int j = 0; j < 26; j++) {
-            packets_num[i][j] = ((int)packets_in[i][j] + 26 - 97) % 26;
-        }
-    }
-    multiply_matrices(numpacks, packets_num, hillkey, packets_out);
 }
 
 // Computes the inverse of a 26x26 matrix modulo 26 using Gauss-Jordan elimination.
@@ -307,18 +300,6 @@ int invertMatrixMod26(int input[26][26], int output[26][26]) { //github copilot 
 
 // Decrypts numpacks packets using the Hill cipher key (by inverting the key) //copilot made this, pls forgive.
 void hill_decrypt(int numpacks, char packets_in[numpacks][26], int hillkey[26][26], char packets_out[numpacks][26]) {
-    int invkey[26][26];
-    if (!invertMatrixMod26(hillkey, invkey)) {
-        printf("Error: Hill key is not invertible!\n");
-        return;
-    }
-    int packets_num[numpacks][26];
-    for (int i = 0; i < numpacks; i++) {
-        for (int j = 0; j < 26; j++) {
-            packets_num[i][j] = ((int)packets_in[i][j] + 26 - 97) % 26;
-        }
-    }
-    multiply_matrices(numpacks, packets_num, invkey, packets_out);
 }
 
 void insertjunkintostream(char *ciphertext_in, char *ciphertext_out){
@@ -401,42 +382,6 @@ void makehillkey(int seed, int hillkey_out[26][26]) { //github copilot made this
     // Now hillkey_out is a random invertible matrix mod 26, reproducible from the seed.
 }
 
-void getsamplehillkey(int hillkey_out[26][26]) {
-    int sample[26][26] = {
-        {23, 18, 5, 19, 24, 10, 13, 23, 16, 0, 21, 8, 13, 17, 11, 11, 12, 12, 0, 0, 14, 10, 15, 3, 1, 6},
-        {0, 1, 9, 4, 0, 4, 12, 0, 2, 12, 24, 23, 5, 7, 10, 19, 14, 23, 17, 14, 11, 17, 17, 23, 21, 0},
-        {0, 0, 1, 15, 4, 8, 22, 0, 14, 13, 7, 18, 15, 13, 16, 9, 9, 11, 18, 19, 24, 11, 2, 9, 9, 6},
-        {0, 0, 0, 1, 13, 10, 1, 15, 11, 3, 18, 8, 6, 3, 4, 0, 21, 24, 25, 18, 10, 16, 14, 12, 1, 5},
-        {0, 0, 0, 0, 1, 16, 25, 14, 4, 12, 0, 21, 15, 23, 18, 20, 4, 25, 14, 25, 20, 1, 10, 8, 4, 11},
-        {0, 0, 0, 0, 0, 1, 10, 14, 1, 7, 13, 19, 13, 19, 1, 24, 18, 21, 13, 6, 20, 1, 6, 12, 2, 1},
-        {0, 0, 0, 0, 0, 0, 1, 9, 6, 21, 0, 0, 16, 10, 25, 3, 23, 24, 25, 13, 24, 25, 16, 10, 2, 0},
-        {0, 0, 0, 0, 0, 0, 0, 1, 18, 19, 3, 1, 8, 2, 0, 5, 25, 23, 13, 14, 4, 10, 2, 3, 21, 8},
-        {0, 0, 0, 0, 0, 0, 0, 0, 1, 20, 19, 24, 12, 18, 12, 19, 4, 13, 20, 24, 15, 1, 12, 4, 7, 3},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 6, 14, 20, 0, 15, 17, 23, 5, 1, 8, 22, 25, 16, 4, 4, 8},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 18, 15, 7, 9, 14, 18, 11, 6, 15, 19, 16, 3, 3, 15, 19},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 22, 4, 18, 15, 19, 11, 6, 19, 5, 18, 24, 22, 9, 2},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 4, 5, 17, 19, 4, 15, 5, 21, 10, 23, 23, 12, 20},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 6, 10, 12, 10, 6, 19, 18, 24, 10, 0, 21, 2},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 8, 10, 25, 9, 14, 18, 19, 15, 19, 15, 7},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 9, 16, 6, 14, 3, 12, 20, 5, 23, 17},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 10, 18, 4, 12, 1, 10, 23, 23, 15},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 4, 24, 18, 3, 19, 1, 13, 1},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 5, 0, 24, 21, 15, 15, 14},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 25, 24, 0, 22, 1, 1},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 4, 3, 13, 15, 16},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 19, 9, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 20, 10, 11},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 4},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 12},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
-    };
-    for (int i = 0; i < 26; i++) {
-        for (int j = 0; j < 26; j++) {
-            hillkey_out[i][j] = sample[i][j];
-        }
-    }
-}
-
 int makefirstanswerkey(int *keystream, int len_of_keystream, char *first_answer, int *keystream_out, int seed){
     int len_out=(strlen(first_answer)<len_of_keystream)?strlen(first_answer):len_of_keystream;
     int randstream[len_out];
@@ -492,7 +437,7 @@ void makepackets(char *ciphertext, char packets_out[][26]){ //only works for les
             strcpy(packets_out[j++],temp);
             if (j>98){return;}
             for(int k=0;k<26;k++){temp[k]='\0';}
-            sprintf(temp, "%03d%c%03d", (int)ceil(strlen(ciphertext)/18.0), ciphertext[0], j+1); //metadata that tells: num_of_packets, identifying attribute, packet_num
+            sprintf(temp, "aa%c%caa%c", letters[(int)ceil(strlen(ciphertext)/18.0)], ciphertext[0], letters[j+1]); //metadata that tells: num_of_packets, identifying attribute, packet_num
             counter=7;
         }
     }
@@ -765,7 +710,6 @@ void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_giv
 
     int hillkey[26][26];
     //makehillkey(seed_passed,hillkey);
-    getsamplehillkey(hillkey); //TODO: change this to make it unique to user. maybe use keystream and seed_passed.
     //hill_encrypt(numpacks,packets,hillkey,newpackets); //TODO: yet to test
     //now newpackets have the final encrypted packets (even metadata is encrypted.)
 
@@ -940,7 +884,44 @@ void my_read(int *keystream, int len_of_key, int seed){
     printf("%s",plaintext);
 }
 
-void delete(int *keystream, int len_of_key, int seed){
+void handledeletion(int *keystream, int len_of_key_given, int seed){
+    char plaintext[100];
+    char cipherjunktext[500];
+    char packetnames[100][100];
+    char packetpaths[100][513];
+    int numpackets=getpacketnames(packetnames,seed,keystream,len_of_key_given);
+
+    getpaths(packetpaths,packetnames,numpackets,seed);
+
+    char encrypted_packets[numpackets][26];
+    
+    deletepackets(packetpaths, numpackets);
+
+    char packetname[100];
+    char packetpath[513];
+
+    char letters[]="abcdefghijklmnopqrstuvwxyz0123456789";
+    srand(9999*(seed+1+len_of_key_given)); //cause why not
+    for(int j=0;j<100;j++){
+        packetname[j]=letters[rand()%strlen(letters)];
+    }
+    packetname[99]='\0';
+
+    char subdirs[100][256];
+    int num_subdirs = get_subdirectories("storage", subdirs, 100); //gets (up to) 100 subdirs from storage.
+
+    int subdir_index = (rand()+2) % num_subdirs;  //chooses a number and takes subdir[that num]
+    sprintf(packetpath,"storage/%s/%s.txt", subdirs[subdir_index], packetname); //prints directory name into filepath   
+
+    if (remove(packetpath) == 0) {
+            printf("File deleted successfully.\n");
+    } else {
+            printf("Error: Unable to delete the file: %s\n",packetpath);
+        }
+
+}
+
+void delete(int *keystream, int len_of_key, int seed){ //TODO: CRITICAL: DOESNT WORK. FIX THIS. ASAP IMP
     char plaintext[100];
     int first_key[100];
     int key1len;
@@ -950,6 +931,10 @@ void delete(int *keystream, int len_of_key, int seed){
     int tempkeylen;
     int seed1;
     int seed2;
+
+    //locations of key1 is from seed and encryption is from keystream.
+    //locations of key2 is from seed1 and seed and encryption is from keystream and key1.
+    //locations of contents is from seed2, seed1 and seed and encryption is from keystream, key1 and key2.
 
     //getting decrypted key1 using seed and keystream
     getfullplaintext(keystream, len_of_key, seed, plaintext);
@@ -967,22 +952,16 @@ void delete(int *keystream, int len_of_key, int seed){
     seed2=getuniquetouserseed(second_key,key2len);
     for(int i=0;i<100;i++){plaintext[i]='\0';tempkey[i]=0;}
 
-    //now we have all 3 seeds.
-    for(int i=0;i<100;i++){first_key[i]=0;second_key[i]=0;}
+    //getting decrypted contents using seed2, seed1 and seed and keystream and key1 and key2
+    tempkeylen=key2len;
+    for(int i=0;i<tempkeylen;i++){tempkey[i]=(keystream[i]+first_key[i]+second_key[i])%26;}
+    handledeletion(tempkey, tempkeylen, (seed*seed1*seed2)); //contents deletion
 
-    char packetnames[100][100];
-    char packetpaths[100][513];
-    int numpackets=getpacketnames(packetnames,(seed*seed1*seed2),keystream,len_of_key); //TODO: check if this is correct
-    getpaths(packetpaths,packetnames,numpackets,(seed*seed1*seed2));
-    deletepackets(packetpaths, numpackets);
-    
-    numpackets=getpacketnames(packetnames,(seed*seed1),keystream,len_of_key); 
-    getpaths(packetpaths,packetnames,numpackets,(seed*seed1));
-    deletepackets(packetpaths, numpackets);
+    tempkeylen=key1len;
+    for(int i=0;i<tempkeylen;i++){tempkey[i]=(keystream[i]+first_key[i])%26;}
+    handledeletion(tempkey, tempkeylen, (seed*seed1)); //key2 deletion
 
-    numpackets=getpacketnames(packetnames,(seed),keystream,len_of_key);
-    getpaths(packetpaths,packetnames,numpackets,seed);
-    deletepackets(packetpaths, numpackets);
+    handledeletion(keystream, len_of_key, seed); //key1 deletion
 
 }
 

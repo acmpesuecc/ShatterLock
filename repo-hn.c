@@ -606,24 +606,43 @@ void makepackets(char *ciphertext, char packets_out[][26]){ //only works for les
     char letters[]="abcdefghijklmnopqrstuvwxyz";
     int j=0;
     char temp[26]={'\0'};
-    int counter=7;
-    sprintf(temp, "aa%c%caa%c", letters[(int)ceil(strlen(ciphertext)/18.0)], ciphertext[0], letters[j+1]); //metadata that tells: num_of_packets, identifying attribute, packet_num
-    for(int i=0;i<strlen(ciphertext);i++){
-        temp[counter++]=ciphertext[i];
-        if(counter==25){
-            temp[25]='\0';
-            strcpy(packets_out[j++],temp);
-            if (j>98){return;}
-            for(int k=0;k<26;k++){temp[k]='\0';}
-            sprintf(temp, "aa%c%caa%c", letters[(int)ceil(strlen(ciphertext)/18.0)], ciphertext[0], letters[j+1]); //metadata that tells: num_of_packets, identifying attribute, packet_num
-            counter=7;
+    int len=strlen(ciphertext);
+    int numpacks =ceil(len / 18);
+
+    int src_idx=0;
+        
+    for (int i = 0; i < 25; i++) 
+        temp[i] = 'z';
+    temp[25] = '\0';        
+    char packs_letter = letters[(numpacks - 1) < 26 ? (numpacks - 1) : 25];
+    char index_letter = letters[(j) < 26 ? j : 25];
+
+        temp[0] = '‌'; //zero-width non-joiner cuz smort
+        temp[1] = '‌';
+        temp[2] = packs_letter;
+        temp[3] = '‌';
+        temp[4] = '‌';
+        temp[5] = '‌';
+        temp[6] = index_letter;
+        
+        for (int p = 0; p < 18; p++) {
+            if (src_idx < len) {
+                char c = ciphertext[src_idx++];
+            if (c >= 'a' && c <= 'z') temp[7 + p] = c;
+            else temp[7 + p] = 'z';
+        } else {
+            temp[7 + p] = 'z';
         }
     }
-    if (strlen(ciphertext)%18!=0){
-        temp[counter]='\0';
-        strcpy(packets_out[j],temp);
-    }
+
+    temp[25] = '\0';
+    strcpy(packets_out[j], temp);
 }
+
+
+    
+
+
 
 int makejunk(char packets_out[][26], int hillkey[][26]){ 
     char randtext[]="philosophyofeducationisalabelappliedtothestudyofthepurposeprocessnatureandidealsofeducationitcanbeconsideredabranchofbothphilosophyandeducationeducationcanbedefinedastheteachingandlearningofspecificskillsandtheimpartingofknowledgejudgmentandwisdomandissomethingbroaderthanthesocietalinstitutionofeducationweoftenspeakofmanyeducationalistsconsideritaweakandwoollyfieldtoofarremovedfromthepracticalapplicationsoftherealworldtobeusefulbutphilosophersdatingbacktoplatoandtheancientgreekshavegiventheareamuchthoughtandemphasisandthereislittledoubtthattheirworkhashelpedshapethepracticeofeducationoverthemillenniaplatoistheearliestimportanteducationalthinkerandeducationisanessentialelementintherepublichismostimportantworkonphilosophyandpoliticaltheorywrittenaroundbcinitheadvocatessomeratherextrememethodsremovingchildrenfromtheirmotherscareandraisingthemaswardsofthestateanddifferentiatingchildrensuitabletothevariouscastesthehighestreceivingthemosteducationsothattheycouldactasguardiansofthecityandcareforthelessablehebelievedthateducationshouldbeholisticincludingfactsskillsphysicaldisciplinemusicandartplatobelievedthattalentandintelligenceisnotdistributedgeneticallyandthusisbefoundinchildrenborntoallclassesalthoughhisproposedsystemofselectivepubliceducationforaneducatedminorityofthepopulationdoesnotreallyfollowademocraticmodelaristotleconsideredhumannaturehabitandreasontobeequallyimportantforcestobecultivatedineducationtheultimateaimofwhichshouldbetoproducegoodandvirtuouscitizensheproposedthatteachersleadtheirstudentssystematicallyandthatrepetitionbeusedasakeytooltodevelopgoodhabitsunlikesocratesemphasisonquestioninghislistenerstobringouttheirownideasheemphasizedthebalancingofthetheoreticalandpracticalaspectsofsubjectstaughtamongwhichheexplicitlymentionsreadingwritingmathematicsmusicphysicaleducationliteraturehistoryandawiderangeofsciencesaswellasplaywhichhealsoconsideredimportantduringthemedievalperiodtheideaofperennialismwasfirstformulatedbystthomasaquinashisinworkdemagistroperennialismholdsthatoneshouldteachthosethingsdeemedtobeofeverlastingimportancetoallpeopleeverywherenamelyprinciplesandreasoningnotjustfactswhichareapttochangeovertimeandthatoneshouldteachfirstaboutpeoplenotmachinesortechniquesitwasoriginallyreligiousinnatureanditwasonlymuchlaterthatatheoryofsecularperennialismdevelopedduringtherenaissancethefrenchskepticmicheldemontaignewasoneofthefirsttocriticallylookateducationunusuallyforhistimemontaignewaswillingtoquestiontheconventionalwisdomoftheperiodcallingintoquestionthewholeedificeoftheeducationalsystemandtheimplicitassumptionthatuniversityeducatedphilosopherswerenecessarilywiserthanuneducatedfarmworkersforexample";

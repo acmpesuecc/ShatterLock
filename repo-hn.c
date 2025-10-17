@@ -1261,6 +1261,50 @@ void printtitle(){
     printf("\n\n");
 }
 
+// SERIALIZING FUNC
+
+void ser_subdirs(char subdirs[][256], int num_subdirs, char *out) {
+    out[0] = '\0';
+    for (int i = 0; i < num_subdirs; i++) {
+        strcat(out, subdirs[i]);
+        if (i != num_subdirs - 1) {
+            strcat(out, "\n");
+        };
+    }
+}
+
+// DE-SERIALIZING CODE
+void deser_subdirs(char *in, char subdirs_out[][256], int *num_subdirs_out) {
+    char *token = strtok(in, "\n");             //strtok essentially tokenizes using "\n" as limiter
+    int count = 0;
+    while (token && count < 100) {
+        strcpy(subdirs_out[count++], token);
+        token = strtok(NULL, "\n");
+    }
+    *num_subdirs_out = count;
+}
+
+// Encrypts and saves the subdirectory list to a file
+void save_encrypted_subdirs(const char *storage_path, const char *out_file, int *key, int key_len) {
+    char subdirs[100][256];
+    int num_subdirs = get_subdirectories(storage_path, subdirs, 100);
+    char serialized[256*100];
+    ser_subdirs(subdirs, num_subdirs, serialized);
+    char encrypted[256*100];
+    vigenerre_encrypt(serialized, encrypted, key, key_len);
+    writetofile((char *)out_file, encrypted);
+}
+
+// Loads and decrypts the subdirectory list from a file
+void load_encrypted_subdirs(const char *in_file, int *key, int key_len, char subdirs_out[][256], int *num_subdirs_out) {
+    char encrypted[256*100];
+    char decrypted[256*100];
+    readcontents((char *)in_file, encrypted);
+    vigenerre_decrypt(encrypted, decrypted, key, key_len);
+    deser_subdirs(decrypted, subdirs_out, num_subdirs_out);
+}
+
+//
 /*******************************************************************************
  * MAIN FUNCTION
  ******************************************************************************/

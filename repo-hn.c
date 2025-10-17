@@ -57,11 +57,84 @@
 #include <stdlib.h>     // for rand functions, malloc, free and exit
 #include <time.h>       // for time(0) when randomness needed
 #include <dirent.h>     // for scanning of subdirectories in linux/posix systems
-#include <sys/stat.h>   // lets us access file/directory metadata like permissions and type
+#include <sys/stat.h>   // for file/directory metadata and operations
+#include <fcntl.h>      // for open() and related flags
+#include <unistd.h>     // for write(), usleep(), and other POSIX functions
+#include <utime.h>      // for utime() function
+#include <sys/time.h>   // for time-related functions
 
 /*******************************************************************************
  * UTILITY FUNCTIONS
  ******************************************************************************/
+
+// Function to add random delay to obscure timing
+static void random_delay(int max_microseconds) {
+    struct timespec ts;
+    ts.tv_sec = 0;
+    ts.tv_nsec = (rand() % max_microseconds) * 1000; // Convert to nanoseconds
+    nanosleep(&ts, NULL);
+}
+
+// Function to touch a directory by creating a junk file
+static void touch_directory(const char *dirpath) {
+    char filepath[512];
+    char filename[32];
+    
+    // Add random delay to obscure timing
+    random_delay(1000); // Up to 1ms delay
+    
+    // Generate random filename
+    snprintf(filename, sizeof(filename), "%08x.jnk", (unsigned int)rand());
+    snprintf(filepath, sizeof(filepath), "%s/%s", dirpath, filename);
+    
+    // Create and write random data
+    int fd = open(filepath, O_WRONLY | O_CREAT | O_EXCL, 0644);
+    if (fd >= 0) {
+        char buf[32];
+        int size = 20 + (rand() % 13); // Random size between 20-32 bytes
+        for (int i = 0; i < size; i++) {
+            buf[i] = 'a' + (rand() % 26);
+        }
+        write(fd, buf, size);
+        close(fd);
+    }
+}
+
+// Function to ensure all directories have consistent timestamps
+static void ensure_timestamp_consistency(const char *base_dir) {
+    DIR *dir = opendir(base_dir);
+    if (!dir) return;
+    
+    struct dirent *entry;
+    char path[1024];
+    struct utimbuf new_times;
+    
+    // Set to current time
+    time_t now = time(NULL);
+    new_times.actime = now;
+    new_times.modtime = now;
+    
+    // First pass: touch all directories
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_DIR) {
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+                continue;
+                
+            snprintf(path, sizeof(path), "%s/%s", base_dir, entry->d_name);
+            
+            // Update directory timestamps
+            utime(path, &new_times);
+            
+            // Add a junk file if needed
+            touch_directory(path);
+        }
+    }
+    
+    // Update the base directory timestamp last
+    utime(base_dir, &new_times);
+    
+    closedir(dir);
+}
 
 /**
  * Prompts user for input and stores result in the provided string
@@ -238,25 +311,79 @@ int get_subdirectories(const char *parent, char subdirs_out[][256], int max_subd
  * Note: Creates 'default' directory if no subdirectories exist
  */
 
-void getpaths(char packetpaths_out[][513],char packetnames[][100], int numpacks, int seed){ 
-//-shashi from here
+void getpaths(char packetpaths_out[][513], char packetnames[][100], int numpacks, int seed) {
+    // Initialize random number generator with the provided seed
+    srand(seed);
+    
+    // Get all subdirectories in the storage folder
     char subdirs[100][256];
-    int num_subdirs = get_subdirectories("storage", subdirs, 100); //gets (up to) 100 subdirs from storage.
+    int num_subdirs = get_subdirectories("storage", subdirs, 100);
 
-    //TODO: check and make sure reproducibility.
-    //PROBLEM THIS IS NOT REPRODUCIBLE. MAKE SURE IT DOESNT HAPPEN!!
-    if (num_subdirs == 0) { //if no subdirectories found. failsafe. consider changing it to make dirs based on key instead of just using default.
-        printf("ERROR: No subdirectories found. Creating 'default'...\n");
+    // Create default directory if no subdirectories exist
+    if (num_subdirs == 0) {
+        printf("No subdirectories found. Creating 'default' directory...\n");
         mkdir("storage/default");
         strcpy(subdirs[0], "default");
         num_subdirs = 1;
     }
 
-    srand(seed);
-    for(int i=0;i<numpacks;i++){//we go through each packet and take the filename and path and combine to put in list of packetpaths
-        int subdir_index = rand() % num_subdirs;  //chooses a number and takes subdir[that num]
-        sprintf(packetpaths_out[i],"storage/%s/%s.txt", subdirs[subdir_index], packetnames[i]); //prints directory name into filepath   
+    // Ensure all directories have consistent timestamps and some junk files
+    ensure_timestamp_consistency("storage");
+
+    // Track which directories we've placed real packets in
+    int dirs_used[100] = {0};
+    int dirs_used_count = 0;
+
+    // First pass: distribute real packets
+    for (int i = 0; i < numpacks; i++) {
+        int subdir_index;
+        
+        // If we haven't used all directories yet, try to use a new one
+        if (dirs_used_count < num_subdirs) {
+            do {
+                subdir_index = rand() % num_subdirs;
+            } while (dirs_used[subdir_index] && dirs_used_count < num_subdirs);
+            
+            if (!dirs_used[subdir_index]) {
+                dirs_used[subdir_index] = 1;
+                dirs_used_count++;
+            }
+        } else {
+            // All directories have at least one packet, distribute randomly
+            subdir_index = rand() % num_subdirs;
+        }
+
+        // Create the full path for this packet
+        snprintf(packetpaths_out[i], 512, "storage/%s/%s.txt", 
+                subdirs[subdir_index], packetnames[i]);
     }
+
+    // Second pass: ensure all directories have at least one file
+    for (int i = 0; i < num_subdirs; i++) {
+        if (!dirs_used[i]) {
+            // This directory wasn't used for any real packets, add a junk file
+            char junk_path[512];
+            char junk_name[32];
+            snprintf(junk_name, sizeof(junk_name), "junk_%08x", rand());
+            snprintf(junk_path, sizeof(junk_path), "storage/%s/%s.jnk", 
+                    subdirs[i], junk_name);
+            
+            // Create a junk file with random content
+            FILE *f = fopen(junk_path, "w");
+            if (f) {
+                char buf[32];
+                int size = 20 + (rand() % 13);
+                for (int j = 0; j < size; j++) {
+                    buf[j] = 'a' + (rand() % 26);
+                }
+                fwrite(buf, 1, size, f);
+                fclose(f);
+            }
+        }
+    }
+
+    // Final pass: update all directory timestamps to be the same
+    ensure_timestamp_consistency("storage");
 }
 
 /*******************************************************************************

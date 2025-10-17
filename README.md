@@ -2,34 +2,6 @@
 
 ## C-project for Semester-2
 
-*(Will make the README better later, please forgive)*
-
----
-
-### How to Run Current Stable Version
-
-#### To run the current stable version: `stableversionfordemo.c`
-
-- **Create a `storage` folder** where you are running, also create subfolders in that and leave them empty.
-- Alternatively, just download the whole repo.
-
-#### Windows Instructions
-
-- Create a `storage` folder in the folder where you downloaded the `stableversionfordemo.exe` file.
-- Then, run `stableversionfordemo.exe` in the terminal.
-
-#### Linux Instructions
-
-- Download the `.c` file.
-- Make a `storage` folder in that directory and compile the `stableversionfordemo.c` file using:
-
-```
-gcc -E stableversionfordemo.c
-gcc -C stableversionfordemo.c -lm
-./a.out
-```
-
----
 
 ## Project Description
 
@@ -50,7 +22,7 @@ The goal of the project is to provide users with a strong local encryption syste
 ---
 
 ### Encryption and Workflow
-
+(Can also refer to Small rough explanation.pdf )
 - The files are encrypted using the username and password themselves. The locations of the files are also dependent on this. Decrypting files is impossible unless the username and password are correct. Therefore, there is no need for additional authentication.
 - The files are encrypted based on a strong encryption algorithm. Then split up into many equally sized packets.
 - These are then spread out into unique pseudo-random locations across the computer’s files.
@@ -61,4 +33,48 @@ The goal of the project is to provide users with a strong local encryption syste
     - The first layer (meta-data) is decrypted to ensure the right packets are decrypted and to order the packets in the right way, making sure they are all there.
     - The metadata is removed, and the rest of the contents are decrypted.
     - The user can then view the files. Similarly, other CRUD operations are defined.
+
+---
+
+## Tech Stack: C
+(You only have to deal with one file, which is the repo-hn file, (can alternatively deal with stableversionfordemo.c ). In a rare case, you might have to look at the storage folder. )
+---
+
+### How to Run Current Stable Version
+
+#### To run the current stable version: 
+##### 1. Fork the repo
+##### 2. Install C/C++ and CodeRunner extensions on your code editor. (optional but recommended)
+https://marketplace.visualstudio.com/items?itemName=formulahendry.code-runner 
+https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools
+##### 2. You can alternatively run 
+```bash
+gcc -E repo-hn.c
+gcc -C repo-hn.c -lm
+./a.out
 ```
+
+---
+
+## Maintainer in charge: *Suraj Acharya*, Github: *SA-10125*
+
+---
+
+
+## How to Contribute
+### 1. Fork the repository on GitHub.
+### 2. Clone your forked repository:
+### 3. Create a new branch for your feature or fix:
+### 4. Make your changes and commit them with clear, descriptive messages:
+### 5. Push your changes to your fork:
+### 6. Open a Pull Request (PR) from your branch to the main branch of the original repository, describing your changes in detail.
+
+---
+
+## Please refer to CONTRIBUTING.md
+
+---
+
+## This repository is open source and is protected under MIT License.
+
+---

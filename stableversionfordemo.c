@@ -49,9 +49,84 @@
 #include <math.h> //for ceil
 #include <stdlib.h> //for rand functions, malloc, free and exit.
 #include <time.h> //for time(0) when randomness needed.
+#include <unistd.h> // for usleep
+#include <fcntl.h> // for file control options
+#include <sys/time.h> // for time functions
 
-#include <dirent.h> //-shashi //for scanning of subdirectories in linux(/posix) systems. (used in get_subdirectories)
-#include <sys/stat.h> //-shashi //lets us access file/directory metadata like permissions and type. (used to differentiate bw directories and files in get_sibdirectories)
+#include <dirent.h> //for scanning of subdirectories in linux(/posix) systems.
+#include <sys/stat.h> //for file/directory metadata and operations
+
+// Function to add random delay to obscure timing
+void random_delay(int max_microseconds) {
+    struct timespec ts;
+    ts.tv_sec = 0;
+    ts.tv_nsec = (rand() % max_microseconds) * 1000; // Convert to nanoseconds
+    nanosleep(&ts, NULL);
+}
+
+// Function to touch a directory by creating a junk file
+void touch_directory(const char *dirpath, int is_real_file) {
+    char filepath[512];
+    char filename[32];
+    
+    // Add random delay to obscure timing
+    random_delay(1000); // Up to 1ms delay
+    
+    // Generate random filename
+    snprintf(filename, sizeof(filename), "%08x.%s", 
+             (unsigned int)rand(), is_real_file ? "dat" : "jnk");
+    snprintf(filepath, sizeof(filepath), "%s/%s", dirpath, filename);
+    
+    // Create and write random data
+    int fd = open(filepath, O_WRONLY | O_CREAT | O_EXCL, 0644);
+    if (fd >= 0) {
+        char buf[32];
+        int size = 20 + (rand() % 13); // Random size between 20-32 bytes
+        for (int i = 0; i < size; i++) {
+            buf[i] = 'a' + (rand() % 26);
+        }
+        write(fd, buf, size);
+        close(fd);
+    }
+}
+
+// Function to ensure all directories have consistent number of files
+void ensure_directory_consistency(const char *base_dir, int min_files) {
+    DIR *dir;
+    struct dirent *entry;
+    char path[1024];
+    
+    // First pass: count directories and files
+    dir = opendir(base_dir);
+    if (!dir) return;
+    
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_DIR) {
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+                continue;
+                
+            snprintf(path, sizeof(path), "%s/%s", base_dir, entry->d_name);
+            
+            // Count files in this directory
+            int file_count = 0;
+            DIR *subdir = opendir(path);
+            if (subdir) {
+                struct dirent *subentry;
+                while ((subentry = readdir(subdir)) != NULL) {
+                    if (subentry->d_type == DT_REG) file_count++;
+                }
+                closedir(subdir);
+                
+                // Add files if needed
+                while (file_count < min_files) {
+                    touch_directory(path, 0); // Add junk file
+                    file_count++;
+                }
+            }
+        }
+    }
+    closedir(dir);
+}
 
 void inputstring(char *what, char *input_to_this_string){
     printf("Enter %s:",what);
@@ -584,47 +659,6 @@ void namejunk(char packetpaths_out[][513],int numpackets,int *keystream, int len
             if (!pF){ //meaning unique name created.
                 unique_name=1;
                 strcpy(packetpaths_out[i],temp);
-            }
-        }
-    }
-}
-
-void writepacketsintofiles(char packetpaths[][513],int numpacks,char packets[][26],char junkpaths[][513],int numjunk,char junk[][26], int *keystream, int len_of_keystream){ //same as before
-    //yes, I know this is V inneficient, just roll with it for this version. consider using a boolean array
-    int writtenpackets[numpacks];
-    for(int k=0;k<numpacks;k++){writtenpackets[k]=0;}
-    int writtenjunk[numjunk];
-    for(int k=0;k<numjunk;k++){writtenjunk[k]=0;}
-    srand(keystream[((int)junk[2][19])%len_of_keystream]); //gives a random seed
-    int countwrittenpacks=0, countwrittenjunk=0;
-    while( countwrittenpacks!=numpacks || countwrittenjunk!=numjunk){ 
-        //we need to write all packets and junkpackets at random so that attacker cant know if the packet is junk or not, or the order they go in by seeing when it was created.
-        //checking_if_all_packets_written
-            // countwrittenjunk=0;
-            // countwrittenpacks=0;
-            // for(int k=0;k<numpacks;k++){if(writtenpackets[k]==1){countwrittenpacks++;}}
-            // for(int k=0;k<numjunk;k++){if(writtenjunk[k]==1){countwrittenjunk++;}}
-            // if(countwrittenjunk==numjunk && countwrittenpacks==numpacks){break;}
-        if(rand()%2==1){ //50/50 chnance of writing junk or packet
-            if(countwrittenpacks==numpacks){continue;}
-            //packet
-            int temp= rand()%numpacks;
-            if (writtenpackets[temp]==0){ //this means packet is not empty, so we write packet and make it empty
-                writetofile(packetpaths[temp], packets[temp]); //writing
-                writtenpackets[temp]=1;
-                countwrittenpacks++;
-                }
-            else{continue;}//packet is empty already, run loop again
-        }
-        else{
-            if(countwrittenjunk==numjunk){continue;}
-            //junk
-            int temp= rand()%numjunk;
-            if (writtenjunk[temp]==0){ //this means packet is not empty, so we write packet and make it empty
-                writetofile(junkpaths[temp], junk[temp]); //writing
-                writtenjunk[temp]=1;
-                countwrittenjunk++;
-                }
             else{continue;}//packet is empty already, run loop again
         }
     }

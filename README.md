@@ -37,7 +37,7 @@ The goal of the project is to provide users with a strong local encryption syste
 ---
 
 ## Tech Stack: C
-
+(You only have to deal with one file, which is the repo-hn file, (can alternatively deal with stableversionfordemo.c ). In a rare case, you might have to look at the storage folder. )
 ---
 
 ### How to Run Current Stable Version

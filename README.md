@@ -22,7 +22,7 @@ The goal of the project is to provide users with a strong local encryption syste
 ---
 
 ### Encryption and Workflow
-
+(Can also refer to Small rough explanation.pdf )
 - The files are encrypted using the username and password themselves. The locations of the files are also dependent on this. Decrypting files is impossible unless the username and password are correct. Therefore, there is no need for additional authentication.
 - The files are encrypted based on a strong encryption algorithm. Then split up into many equally sized packets.
 - These are then spread out into unique pseudo-random locations across the computer’s files.

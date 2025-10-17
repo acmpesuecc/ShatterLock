@@ -1128,43 +1128,79 @@ void printtitle(){
 /**
  * Main entry point
  * Handles user authentication and operation selection (Signup/Read/Edit/Delete)
- */
-int main(){
+ */#include <stdio.h>   // For printf, scanf, etc.
+#include <stdbool.h> // For the 'bool' type
+#include <stdlib.h>  // For exit()
+
+// Forward-declare your functions here if they are in the same file but defined after main()
+void printtitle();
+void inputstring(char *what, char *input_to_this_string);
+int makekey(char *usn, char *pwd, int *keystream_out);
+int getuniquetouserseed(int *keystream, int len_of_keystream);
+bool verify_credentials(int *keystream, int len_of_key, int seed);
+void signup(int *keystream, int len_of_key, int seed);
+void my_read(int *keystream, int len_of_key, int seed);
+void edit(int *keystream, int len_of_key, int seed);
+void delete(int *keystream, int len_of_key, int seed);
+
+
+int main() {
     printtitle();
     char username[100];
     char password[100];
     int keystream[100];
-    inputstring("Username",username);
-    inputstring("Password",password);
 
-    int len_of_key=makekey(username,password,keystream);
-    for(int i=0;i<100;i++){username[i]='\0';password[i]='\0';}
-    int seed=getuniquetouserseed(keystream, len_of_key);
+    inputstring("Username", username);
+    inputstring("Password", password);
 
-    char useless[10];
-    fgets(useless,10,stdin); //clears
-    
+    int len_of_key = makekey(username, password, keystream);
+    // Securely erase credentials from memory
+    for (int i = 0; i < 100; i++) {
+        username[i] = '\0';
+        password[i] = '\0';
+    }
+    int seed = getuniquetouserseed(keystream, len_of_key);
+
+    // This loop clears the input buffer, consuming the newline left by the last scanf
+    while (getchar() != '\n');
+
     char choice;
     printf("Enter choice (S for signup, R for read, E for edit, D for delete):\n");
-    scanf("%c",&choice);
-    switch (choice)
-    {
-    case 'S':
-        signup(keystream,len_of_key, seed);
-        break;
-    case 'R':
-        my_read(keystream,len_of_key, seed);
-        break;
-    case 'E':
-        edit(keystream,len_of_key, seed);
-        break;
-    case 'D':
-        delete(keystream, len_of_key, seed);
-        break;
-    default:
-        printf("Invalid input.");
-        break;
+    scanf(" %c", &choice); // The space before %c skips any leftover whitespace.
+
+    // For any action OTHER than signup, verify the credentials first.
+    if (choice != 'S' && choice != 's') {
+        printf("\nVerifying credentials...\n");
+        if (!verify_credentials(keystream, len_of_key, seed)) {
+            // This is the specific login error message.
+            fprintf(stderr, " Authentication Failed: Invalid username or password.\n");
+            return 1; // Exit with an error code
+        }
+        printf("✅ Verification successful!\n\n");
     }
 
-    return 0;
+    // Now, handle the user's choice
+    switch (choice) {
+        case 'S':
+        case 's':
+            signup(keystream, len_of_key, seed);
+            break;
+        case 'R':
+        case 'r':
+            my_read(keystream, len_of_key, seed);
+            break;
+        case 'E':
+        case 'e':
+            edit(keystream, len_of_key, seed);
+            break;
+        case 'D':
+        case 'd':
+            delete(keystream, len_of_key, seed);
+            break;
+        default:
+            fprintf(stderr, " Error: Invalid input '%c'. Please try again.\n", choice);
+            return 1; // Exit with an error code
+    }
+
+    return 0; // Success
 }

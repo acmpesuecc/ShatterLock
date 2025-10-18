@@ -37,7 +37,7 @@
  * 
  * TODO: General Improvements
  *   - Support multiple contents per user
- *   - Improve junk generation (better frequency distribution)
+ *   - Improve junk generation (better frequen./cy distribution)
  *   - Optimize directory selection algorithm
  *   - Research qsort() for packet ordering
  * 
@@ -201,6 +201,10 @@ void deletepackets(char packetpath[][513], int numpackets){
  * @return Number of subdirectories found
  * Note: Skips "." and ".." directories
  */
+
+void load_encrypted_subdirs(const char *in_file, int *key, int key_len, char subdirs_out[][256], int *num_subdirs_out);
+void save_encrypted_subdirs(const char *storage_path, const char *out_file, int *key, int key_len); 
+
 int get_subdirectories(const char *parent, char subdirs_out[][256], int max_subdirs) { //-shashi
     DIR *dir = opendir(parent); 
     if (!dir) {
@@ -901,8 +905,9 @@ void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_giv
     getpaths(packetpaths,packetnames,numpacks,seed_passed);
 
     writepacketsintofiles(packetpaths,numpacks,packets,junkpaths,numjunk,junk,key_given,len_of_key_given);
+    save_encrypted_subdirs("storage", "repo-hn.subdirs", key_given, len_of_key_given);
 
-    printf("Encrypted and Saved.",seed_passed);
+    printf("Encrypted and Saved,",seed_passed);
 }
 
 /*******************************************************************************
@@ -1023,6 +1028,25 @@ void getfullplaintext(int *keystream, int len_of_key, int seed, char *plaintext_
     removejunkfromstream(cipherjunktext,ciphertext);
     vigenerre_decrypt(ciphertext, plaintext, keystream, len_of_key);
     strcpy(plaintext_out,plaintext);
+
+    char subdirs[100][256];
+    int num_subdirs = 0;
+    load_encrypted_subdirs("repo-hn.subdirs", keystream, len_of_key, subdirs, &num_subdirs);
+
+    for (int i = 0; i < numpackets; i++) {
+    int valid = 0;
+    for (int j = 0; j < num_subdirs; j++) {
+        char expected_prefix[512];
+        printf(expected_prefix, sizeof(expected_prefix), "storage/%s/", subdirs[j]);
+        if (strncmp(packetpaths[i], expected_prefix, strlen(expected_prefix)) == 0) {
+            valid = 1;
+            break;
+        }
+    }
+    if (!valid) {
+        printf("Packet path %s not in saved subdir list\n", packetpaths[i]);
+    }
+}
 }
 
 /**
@@ -1120,6 +1144,7 @@ void signup(int *keystream, int len_of_key, int seed){
     plaintext[99]='\0'; //praying the length of key is under 100
     handle_encryption_tasks(plaintext, keystream, len_of_key, seed);
     for(int i=0;i<100;i++){first_key[i]=0;tempkey[i]=0;plaintext[i]=0;} //for safety.
+
 }
 
 /**
@@ -1302,6 +1327,7 @@ void load_encrypted_subdirs(const char *in_file, int *key, int key_len, char sub
     readcontents((char *)in_file, encrypted);
     vigenerre_decrypt(encrypted, decrypted, key, key_len);
     deser_subdirs(decrypted, subdirs_out, num_subdirs_out);
+
 }
 
 //

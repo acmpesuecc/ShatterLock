@@ -485,10 +485,10 @@ void makepackets(char *ciphertext, char packets_out[][26]){ //only works for les
     }
     if(strlen(ciphertext)<=6)
     {
-        char temp = (char)('a' + (rand() % 26));
+        char temp = (char)('a' + (rand() % 20));
+        int counter=0;
         for(int k=strlen(ciphertext);k<20;k++)
         {
-            int counter=0;
             ciphertext[k] = temp;
             if(temp=='z')
                 temp=(char)('a'-1);
@@ -827,7 +827,7 @@ void openpackets(char *ciphertext_out, char packets[][26], int numpacks){
     ciphertext_out[0]='\0';
     for(int i=0;i<numpacks;i++){
         for(int j=7;j<26;j++){
-            if(packets[i][j]==packets[i][j+1] && packets[i][j+1]==packets[i][j+3] && packets[i][j+2]==packets[i][j+5])
+            if(packets[i][j]+1==packets[i][j+1] && packets[i][j+1]+2==packets[i][j+2] && packets[i][j+2]+3==packets[i][j+4])
             {
                 packets[i][j]='\0';
                 return;

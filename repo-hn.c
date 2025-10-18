@@ -436,7 +436,7 @@ int makefirstanswerkey(int *keystream, int len_of_keystream, char *first_answer,
     }
     srand(keystream_out[len_out-1]*keystream_out[0]);
     keystream_out[len_out-1]=(rand()*seed)%26;
-    printf("**%d**\n", len_out);
+
     return (len_out);
 }
 
@@ -457,7 +457,7 @@ int makesecondanswerkey(int *keystream,int *key1, int key1len, char *second_answ
     }
     srand(keystream_out[len_out-1]*keystream_out[0]);
     keystream_out[len_out-1]=(rand()*seed*seed1)%26;
-    printf("*****%d*****\n", len_out);
+
     return (len_out);
 }
 
@@ -482,6 +482,19 @@ void makepackets(char *ciphertext, char packets_out[][26]){ //only works for les
     if (strlen(ciphertext)%18!=0){
         temp[counter]='\0';
         strcpy(packets_out[j],temp);
+    }
+    if(strlen(ciphertext)<=6)
+    {
+        char temp = (char)('a' + (rand() % 26));
+        for(int k=strlen(ciphertext);k<20;k++)
+        {
+            int counter=0;
+            ciphertext[k] = temp;
+            if(temp=='z')
+                temp=(char)('a'-1);
+            counter++;
+            temp+=counter;
+        }
     }
 }
 
@@ -814,7 +827,12 @@ void openpackets(char *ciphertext_out, char packets[][26], int numpacks){
     ciphertext_out[0]='\0';
     for(int i=0;i<numpacks;i++){
         for(int j=7;j<26;j++){
-            if (packets[i][j]!='\0' && packets[i][j]>=97 && packets[i][j]<=122){
+            if(packets[i][j]==packets[i][j+1] && packets[i][j+1]==packets[i][j+3] && packets[i][j+2]==packets[i][j+5])
+            {
+                packets[i][j]='\0';
+                return;
+            }
+            if (packets[i][j]!='\0' && packets[i][j]>=97 && packets[i][j]<=122){ 
                 ciphertext_out[count++]=packets[i][j];
             }
         }
@@ -972,13 +990,13 @@ void signup(int *keystream, int len_of_key, int seed){
     for(int i=0;i<tempkeylen;i++){
         tempkey[i]=(keystream[i]+first_key[i])%26;
     }
-    handle_encryption_tasks(plaintext, tempkey, tempkeylen, (seed*seed1));
+    //handle_encryption_tasks(plaintext, tempkey, tempkeylen, (seed*seed1));
     for(int i=0;i<100;i++){second_key[i]=0;tempkey[i]=0;plaintext[i]='\0';} //for safety.
 
     //encrypting key1 from keystream 
     for(int i=0;i<key1len;i++){plaintext[i]=(char)(first_key[i]+97);}
     plaintext[99]='\0'; //praying the length of key is under 100
-    handle_encryption_tasks(plaintext, keystream, len_of_key, seed);
+    //handle_encryption_tasks(plaintext, keystream, len_of_key, seed);
     for(int i=0;i<100;i++){first_key[i]=0;tempkey[i]=0;plaintext[i]=0;} //for safety.
 }
 

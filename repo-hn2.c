@@ -21,7 +21,25 @@
  *   - Each layer encrypted with combination of previous keys
  *   - Reproducible packet naming based on seeds
  *   - Junk packets intermixed with real packets
- 
+ * 
+ * TODO: Critical Security Improvements
+ *   - Obscure key lengths (keys 1, 2, 3) by padding packets uniformly
+ *   - Add layered metadata encryption
+ *   - Implement full Hill cipher integration (currently commented out)
+ *   - Touch all directories during writes to prevent timing analysis
+ *   - Add more packets for keys using rare letters (Q, Z) as padding
+ * 
+ * TODO: Encryption Enhancement
+ *   - Complete Hill cipher implementation (26x26 matrix)
+ *   - Add second encryption layer using all three keys
+ *   - Store subdirectory list as encrypted packets per user
+ *   - Maintain consistent real-to-junk packet ratios
+ * 
+ * TODO: General Improvements
+ *   - Support multiple contents per user
+ *   - Improve junk generation (better frequency distribution)
+ *   - Optimize directory selection algorithm
+ *   - Research qsort() for packet ordering
  * 
  * KNOWN ISSUES:
  *   - Metadata format (001A002) incompatible with Hill cipher (a-z only)
@@ -33,13 +51,28 @@
 /*******************************************************************************
  * INCLUDE FILES
  ******************************************************************************/
-#include <stdio.h>      // for printf and scanf
-#include <string.h>     // for strlen, strcpy, memcpy
-#include <math.h>       // for ceil
-#include <stdlib.h>     // for rand functions, malloc, free and exit
-#include <time.h>       // for time(0) when randomness needed
-#include <dirent.h>     // for scanning of subdirectories in linux/posix systems
-#include <sys/stat.h>   // lets us access file/directory metadata like permissions and type
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+#include <stdlib.h>
+#include <time.h>
+#include <dirent.h>
+#include <sys/stat.h>
+
+/*******************************************************************************
+ * FORWARD DECLARATIONS
+ ******************************************************************************/
+// Vigenère cipher functions
+void vigenerre_encrypt(char *plaintext, char *ciphertext_out, int *keystream, int len);
+void vigenerre_decrypt(char *ciphertext, char *plaintext_out, int *keystream, int len);
+
+// Junk insertion/removal
+void insertjunkintostream(char *ciphertext_in, char *ciphertext_out);
+void removejunkfromstream(char *ciphertext_in, char *ciphertext_out);
+
+// Packet functions
+void getpaths(char packetpaths_out[][513], char packetnames[][100], int numpacks, int seed);
+int read_metadata_packet(int *key_given, int len_of_key_given, int seed);
 
 /*******************************************************************************
  * UTILITY FUNCTIONS
@@ -195,10 +228,10 @@ int get_subdirectories(const char *parent, char subdirs_out[][256], int max_subd
     int count = 0; //how many subdirs found
     char path[512]; //full path names
     struct stat statbuf; //is the entry a diretory? 
-
+    
     while ((entry = readdir(dir)) != NULL && count < max_subdirs) { //reading each object in parent till max_subdirs found.
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0){continue;} //if directory is . or .., skip it. (those are current and parent dirs)
-
+        
         snprintf(path, sizeof(path), "%s/%s", parent, entry->d_name); //constructs full path
         if (stat(path, &statbuf) == 0 && S_ISDIR(statbuf.st_mode)) { //if metadata and if its a directory, put into subdirs[]
             strncpy(subdirs_out[count], entry->d_name, 255);
@@ -206,9 +239,52 @@ int get_subdirectories(const char *parent, char subdirs_out[][256], int max_subd
             count++; 
         }
     }
-
+    
     closedir(dir); //closes parent
     return count; //returns number of (useful) subdirs put into subdirs[].
+}
+
+// SERIALIZING FUNC
+
+void ser_subdirs(char subdirs[][256], int num_subdirs, char *out) {
+    out[0] = '\0';
+    for (int i = 0; i < num_subdirs; i++) {
+        strcat(out, subdirs[i]);
+        if (i != num_subdirs - 1) {
+            strcat(out, "\n");
+        };
+    }
+}
+
+// DE-SERIALIZING CODE
+void deser_subdirs(char *in, char subdirs_out[][256], int *num_subdirs_out) {
+    char *token = strtok(in, "\n");             //strtok essentially tokenizes using "\n" as limiter
+    int count = 0;
+    while (token && count < 100) {
+        strcpy(subdirs_out[count++], token);
+        token = strtok(NULL, "\n");
+    }
+    *num_subdirs_out = count;
+}
+
+// Encrypts and saves the subdirectory list to a file
+void save_encrypted_subdirs(const char *storage_path, const char *out_file, int *key, int key_len) {
+    char subdirs[100][256];
+    int num_subdirs = get_subdirectories(storage_path, subdirs, 100);
+    char serialized[256*100];
+    ser_subdirs(subdirs, num_subdirs, serialized);
+    char encrypted[256*100];
+    vigenerre_encrypt(serialized, encrypted, key, key_len);
+    writetofile((char *)out_file, encrypted);
+}
+
+// Loads and decrypts the subdirectory list from a file
+void load_encrypted_subdirs(const char *in_file, int *key, int key_len, char subdirs_out[][256], int *num_subdirs_out) {
+    char encrypted[256*100];
+    char decrypted[256*100];
+    readcontents((char *)in_file, encrypted);
+    vigenerre_decrypt(encrypted, decrypted, key, key_len);
+    deser_subdirs(decrypted, subdirs_out, num_subdirs_out);
 }
 
 /**
@@ -327,6 +403,128 @@ void vigenerre_decrypt(char *ciphertext, char *plaintext_out, int *keystream, in
         plaintext_out[i]=(char)(((((int)ciphertext[i])-keystream[i%len])+26-97)%26)+97;
     }
     plaintext_out[strlen(ciphertext)]='\0'; //null_terminating
+}
+
+/*******************************************************************************
+ * HILL CIPHER FUNCTIONS
+ ******************************************************************************/
+
+/**
+ * Multiplies message vectors by Hill cipher key matrix
+ * @param R1 - Number of rows in message matrix
+ * @param m1 - Message matrix (R1 x 26)
+ * @param key - Hill cipher key (26 x 26)
+ * @param m_out - Output matrix (R1 x 26) as lowercase letters
+ * Note: Used internally by hill_encrypt
+ */
+void multiply_matrices(int R1, int m1[R1][26], int key[26][26], char m_out[R1][26]) { //copilot helped with this, pls forgive.
+    char letters[] = "abcdefghijklmnopqrstuvwxyz";
+    for (int i = 0; i < R1; i++) {
+        for (int j = 0; j < 26; j++) {
+            int sum = 0;
+            for (int k = 0; k < 26; k++) {
+                sum = (sum + m1[i][k] * key[k][j]) % 26;
+            }
+            m_out[i][j] = letters[(sum + 26) % 26];
+        }
+    }
+}
+
+// Encrypts numpacks packets using the Hill cipher key (packets_in × hillkey) //copilot helped with this, pls forgive.
+void hill_encrypt(int numpacks, char packets_in[numpacks][26], int hillkey[26][26], char packets_out[numpacks][26]) {
+    int packets_num[numpacks][26];
+    for (int i = 0; i < numpacks; i++) {
+        for (int j = 0; j < 26; j++) {
+            packets_num[i][j] = ((int)packets_in[i][j] + 26 - 97) % 26;
+        }
+    }
+    multiply_matrices(numpacks, packets_num, hillkey, packets_out);
+}
+
+/**
+ * Computes modular multiplicative inverse of a number modulo 26
+ * @param a - Number to find inverse of
+ * @return Modular inverse, or 0 if not invertible
+ * Note: Used for Hill cipher key matrix inversion
+ */
+int modinv26(int a) { //github copilot mad ethis. pls forgive.
+    // Returns the modular inverse of a mod 26, or 0 if not invertible
+    a = a % 26;
+    for (int x = 1; x < 26; x++) {
+        if ((a * x) % 26 == 1) return x;
+    }
+    return 0;
+}
+
+int invertMatrixMod26(int input[26][26], int output[26][26]) { //github copilot made this. pls forgive.
+    int n = 26;
+    int aug[26][52];
+    // Set up augmented matrix [input | I]
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            aug[i][j] = input[i][j] % 26;
+            if (aug[i][j] < 0) aug[i][j] += 26;
+            aug[i][j + n] = (i == j) ? 1 : 0;
+        }
+    }
+    // Gauss-Jordan elimination
+    for (int col = 0; col < n; col++) {
+        // Find pivot
+        int pivot = -1;
+        for (int row = col; row < n; row++) {
+            if (aug[row][col] != 0 && modinv26(aug[row][col]) != 0) {
+                pivot = row;
+                break;
+            }
+        }
+        if (pivot == -1) return 0; // Not invertible
+        // Swap rows if needed
+        if (pivot != col) {
+            for (int k = 0; k < 2 * n; k++) {
+                int tmp = aug[col][k];
+                aug[col][k] = aug[pivot][k];
+                aug[pivot][k] = tmp;
+            }
+        }
+        // Scale pivot row
+        int inv = modinv26(aug[col][col]);
+        for (int k = 0; k < 2 * n; k++) {
+            aug[col][k] = (aug[col][k] * inv) % 26;
+            if (aug[col][k] < 0) aug[col][k] += 26;
+        }
+        // Eliminate other rows
+        for (int row = 0; row < n; row++) {
+            if (row == col) continue;
+            int factor = aug[row][col];
+            for (int k = 0; k < 2 * n; k++) {
+                aug[row][k] = (aug[row][k] - factor * aug[col][k]) % 26;
+                if (aug[row][k] < 0) aug[row][k] += 26;
+            }
+        }
+    }
+    // Extract inverse
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            output[i][j] = aug[i][j + n];
+        }
+    }
+    return 1;
+}
+
+// Decrypts numpacks packets using the Hill cipher key (by inverting the key) //copilot made this, pls forgive.
+void hill_decrypt(int numpacks, char packets_in[numpacks][26], int hillkey[26][26], char packets_out[numpacks][26]) {
+    int invkey[26][26];
+    if (!invertMatrixMod26(hillkey, invkey)) {
+        printf("Error: Hill key is not invertible!\n");
+        return;
+    }
+    int packets_num[numpacks][26];
+    for (int i = 0; i < numpacks; i++) {
+        for (int j = 0; j < 26; j++) {
+            packets_num[i][j] = ((int)packets_in[i][j] + 26 - 97) % 26;
+        }
+    }
+    multiply_matrices(numpacks, packets_num, invkey, packets_out);
 }
 
 /*******************************************************************************
@@ -482,19 +680,6 @@ void makepackets(char *ciphertext, char packets_out[][26]){ //only works for les
     if (strlen(ciphertext)%18!=0){
         temp[counter]='\0';
         strcpy(packets_out[j],temp);
-    }
-    if(strlen(ciphertext)<=6)
-    {
-        char temp = (char)('a' + (rand() % 20));
-        int counter=0;
-        for(int k=strlen(ciphertext);k<20;k++)
-        {
-            ciphertext[k] = temp;
-            if(temp=='z')
-                temp=(char)('a'-1);
-            counter++;
-            temp+=counter;
-        }
     }
 }
 
@@ -774,6 +959,7 @@ void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_giv
     getpaths(packetpaths,packetnames,numpacks,seed_passed);
 
     writepacketsintofiles(packetpaths,numpacks,packets,junkpaths,numjunk,junk,key_given,len_of_key_given);
+    save_encrypted_subdirs("storage", "repo-hn.subdirs", key_given, len_of_key_given);
 
     printf("Encrypted and Saved.",seed_passed);
 }
@@ -827,12 +1013,7 @@ void openpackets(char *ciphertext_out, char packets[][26], int numpacks){
     ciphertext_out[0]='\0';
     for(int i=0;i<numpacks;i++){
         for(int j=7;j<26;j++){
-            if(packets[i][j]+1==packets[i][j+1] && packets[i][j+1]+2==packets[i][j+2] && packets[i][j+2]+3==packets[i][j+4])
-            {
-                packets[i][j]='\0';
-                return;
-            }
-            if (packets[i][j]!='\0' && packets[i][j]>=97 && packets[i][j]<=122){ 
+            if (packets[i][j]!='\0' && packets[i][j]>=97 && packets[i][j]<=122){
                 ciphertext_out[count++]=packets[i][j];
             }
         }
@@ -889,18 +1070,37 @@ void getfullplaintext(int *keystream, int len_of_key, int seed, char *plaintext_
 
     char encrypted_packets[numpackets][26];
     
-    getpackets(numpackets,packetpaths,encrypted_packets); 
+    getpackets(numpacks,packetpaths,encrypted_packets); 
 
-    char packets[numpackets][26];
+    char packets[numpacks][26];
     int hillkey[26][26];
     //makehillkey(seed,hillkey);
-    //hill_decrypt(numpackets,encrypted_packets,hillkey,packets);
+    //hill_decrypt(numpacks,encrypted_packets,hillkey,packets);
 
     openpackets(cipherjunktext,encrypted_packets,numpackets); //TODO: change this when you implement hill.
     char ciphertext[200]; 
     removejunkfromstream(cipherjunktext,ciphertext);
     vigenerre_decrypt(ciphertext, plaintext, keystream, len_of_key);
     strcpy(plaintext_out,plaintext);
+
+    char subdirs[100][256];
+    int num_subdirs = 0;
+    load_encrypted_subdirs("repo-hn.subdirs", keystream, len_of_key, subdirs, &num_subdirs);
+
+    for (int i = 0; i < numpackets; i++) {
+    int valid = 0;
+    for (int j = 0; j < num_subdirs; j++) {
+        char expected_prefix[512];
+        printf(expected_prefix, sizeof(expected_prefix), "storage/%s/", subdirs[j]);
+        if (strncmp(packetpaths[i], expected_prefix, strlen(expected_prefix)) == 0) {
+            valid = 1;
+            break;
+        }
+    }
+    if (!valid) {
+        printf("Packet path %s not in saved subdir list\n", packetpaths[i]);
+    }
+}
 }
 
 /**
@@ -990,14 +1190,15 @@ void signup(int *keystream, int len_of_key, int seed){
     for(int i=0;i<tempkeylen;i++){
         tempkey[i]=(keystream[i]+first_key[i])%26;
     }
-    //handle_encryption_tasks(plaintext, tempkey, tempkeylen, (seed*seed1));
+    handle_encryption_tasks(plaintext, tempkey, tempkeylen, (seed*seed1));
     for(int i=0;i<100;i++){second_key[i]=0;tempkey[i]=0;plaintext[i]='\0';} //for safety.
 
     //encrypting key1 from keystream 
     for(int i=0;i<key1len;i++){plaintext[i]=(char)(first_key[i]+97);}
     plaintext[99]='\0'; //praying the length of key is under 100
-    //handle_encryption_tasks(plaintext, keystream, len_of_key, seed);
+    handle_encryption_tasks(plaintext, keystream, len_of_key, seed);
     for(int i=0;i<100;i++){first_key[i]=0;tempkey[i]=0;plaintext[i]=0;} //for safety.
+
 }
 
 /**
@@ -1139,6 +1340,8 @@ void printtitle(){
     printf("\n\n");
 }
 
+
+//
 /*******************************************************************************
  * MAIN FUNCTION
  ******************************************************************************/

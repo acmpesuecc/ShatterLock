@@ -21,7 +21,25 @@
  *   - Each layer encrypted with combination of previous keys
  *   - Reproducible packet naming based on seeds
  *   - Junk packets intermixed with real packets
- 
+ * 
+ * TODO: Critical Security Improvements
+ *   - Obscure key lengths (keys 1, 2, 3) by padding packets uniformly
+ *   - Add layered metadata encryption
+ *   - Implement full Hill cipher integration (currently commented out)
+ *   - Touch all directories during writes to prevent timing analysis
+ *   - Add more packets for keys using rare letters (Q, Z) as padding
+ * 
+ * TODO: Encryption Enhancement
+ *   - Complete Hill cipher implementation (26x26 matrix)
+ *   - Add second encryption layer using all three keys
+ *   - Store subdirectory list as encrypted packets per user
+ *   - Maintain consistent real-to-junk packet ratios
+ * 
+ * TODO: General Improvements
+ *   - Support multiple contents per user
+ *   - Improve junk generation (better frequen./cy distribution)
+ *   - Optimize directory selection algorithm
+ *   - Research qsort() for packet ordering
  * 
  * KNOWN ISSUES:
  *   - Metadata format (001A002) incompatible with Hill cipher (a-z only)
@@ -182,6 +200,10 @@ void deletepackets(char packetpath[][513], int numpackets){
  * @return Number of subdirectories found
  * Note: Skips "." and ".." directories
  */
+
+void load_encrypted_subdirs(const char *in_file, int *key, int key_len, char subdirs_out[][256], int *num_subdirs_out);
+void save_encrypted_subdirs(const char *storage_path, const char *out_file, int *key, int key_len); 
+
 int get_subdirectories(const char *parent, char subdirs_out[][256], int max_subdirs) { //-shashi
     DIR *dir = opendir(parent); 
     if (!dir) {
@@ -796,8 +818,9 @@ void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_giv
     getpaths(packetpaths,packetnames,numpacks,seed_passed);
 
     writepacketsintofiles(packetpaths,numpacks,packets,junkpaths,numjunk,junk,key_given,len_of_key_given);
+    save_encrypted_subdirs("storage", "repo-hn.subdirs", key_given, len_of_key_given);
 
-    printf("Encrypted and Saved.",seed_passed);
+    printf("Encrypted and Saved,",seed_passed);
 }
 
 /*******************************************************************************
@@ -925,6 +948,25 @@ void getfullplaintext(int *keystream, int len_of_key, int seed, char *plaintext_
     removejunkfromstream(cipherjunktext,ciphertext);
     vigenerre_decrypt(ciphertext, plaintext, keystream, len_of_key);
     strcpy(plaintext_out,plaintext);
+
+    char subdirs[100][256];
+    int num_subdirs = 0;
+    load_encrypted_subdirs("repo-hn.subdirs", keystream, len_of_key, subdirs, &num_subdirs);
+
+    for (int i = 0; i < numpackets; i++) {
+    int valid = 0;
+    for (int j = 0; j < num_subdirs; j++) {
+        char expected_prefix[512];
+        printf(expected_prefix, sizeof(expected_prefix), "storage/%s/", subdirs[j]);
+        if (strncmp(packetpaths[i], expected_prefix, strlen(expected_prefix)) == 0) {
+            valid = 1;
+            break;
+        }
+    }
+    if (!valid) {
+        printf("Packet path %s not in saved subdir list\n", packetpaths[i]);
+    }
+}
 }
 
 /**
@@ -1022,6 +1064,7 @@ void signup(int *keystream, int len_of_key, int seed){
     plaintext[99]='\0'; //praying the length of key is under 100
     handle_encryption_tasks(plaintext, keystream, len_of_key, seed);
     for(int i=0;i<100;i++){first_key[i]=0;tempkey[i]=0;plaintext[i]=0;} //for safety.
+
 }
 
 /**
@@ -1163,6 +1206,51 @@ void printtitle(){
     printf("\n\n");
 }
 
+// SERIALIZING FUNC
+
+void ser_subdirs(char subdirs[][256], int num_subdirs, char *out) {
+    out[0] = '\0';
+    for (int i = 0; i < num_subdirs; i++) {
+        strcat(out, subdirs[i]);
+        if (i != num_subdirs - 1) {
+            strcat(out, "\n");
+        };
+    }
+}
+
+// DE-SERIALIZING CODE
+void deser_subdirs(char *in, char subdirs_out[][256], int *num_subdirs_out) {
+    char *token = strtok(in, "\n");             //strtok essentially tokenizes using "\n" as limiter
+    int count = 0;
+    while (token && count < 100) {
+        strcpy(subdirs_out[count++], token);
+        token = strtok(NULL, "\n");
+    }
+    *num_subdirs_out = count;
+}
+
+// Encrypts and saves the subdirectory list to a file
+void save_encrypted_subdirs(const char *storage_path, const char *out_file, int *key, int key_len) {
+    char subdirs[100][256];
+    int num_subdirs = get_subdirectories(storage_path, subdirs, 100);
+    char serialized[256*100];
+    ser_subdirs(subdirs, num_subdirs, serialized);
+    char encrypted[256*100];
+    vigenerre_encrypt(serialized, encrypted, key, key_len);
+    writetofile((char *)out_file, encrypted);
+}
+
+// Loads and decrypts the subdirectory list from a file
+void load_encrypted_subdirs(const char *in_file, int *key, int key_len, char subdirs_out[][256], int *num_subdirs_out) {
+    char encrypted[256*100];
+    char decrypted[256*100];
+    readcontents((char *)in_file, encrypted);
+    vigenerre_decrypt(encrypted, decrypted, key, key_len);
+    deser_subdirs(decrypted, subdirs_out, num_subdirs_out);
+
+}
+
+//
 /*******************************************************************************
  * MAIN FUNCTION
  ******************************************************************************/
